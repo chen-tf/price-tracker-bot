@@ -25,7 +25,7 @@ price-tracker-bot is a telegram bot that can trace the price on [momoshop](https
 ### heroku
 - [heroku application](https://devcenter.heroku.com/articles/creating-apps)
 - [Heroku Postgres](https://devcenter.heroku.com/articles/heroku-postgresql)
-- [Heroku config](https://devcenter.heroku.com/articles/config-vars)需要設定的環境變數
+- [Heroku config](https://devcenter.heroku.com/articles/config-vars) 設定heoku上環境變數
 - [建立Heroku Scheduler(Optional)](https://devcenter.heroku.com/articles/scheduler)
 
 如果是使用免費方案，服務太久沒有收到request，就會被暫時關閉，如果要長時間維持服務，需要定時發送一些request保持服務運作。
