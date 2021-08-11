@@ -1,6 +1,14 @@
 ## 簡介
 price-tracker-bot is a telegram bot that can trace the price on [momoshop](https://www.momoshop.com.tw "momoshop").
 
+
+---
+## Demo
+Telegram bot search [@momo_price_tracker_bot](https://t.me/momo_price_tracker_bot)
+
+---
+
+
 ## 環境建置
 ### database
 - PostgreSQL 10<br>
@@ -52,6 +60,7 @@ Scheduler新增`curl --location --request GET 'https://{AppName}.herokuapp.com'`
 ---
 
 ## 機器人指令
+<br>對話輸入momo商品網址可直接加入追蹤
 - /start 顯示目前所支援的指令
 - /my 顯示目前所有追蹤物品清單，以及當下所記錄價格
 - /clear 清除目前所有追蹤物品清單
