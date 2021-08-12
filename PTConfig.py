@@ -25,6 +25,7 @@ DB_USER = os.getenv('DB_USER')
 DB_PASSWORD = os.getenv('DB_PASSWORD')
 
 LOGGING_LEVEL = os.getenv('LOGGING_LEVEL')
+PERIOD_HOUR = os.getenv('PERIOD_HOUR', 2)
 
 
 def momo_good_url():
