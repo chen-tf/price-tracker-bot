@@ -15,11 +15,18 @@ Telegram bot search [@momo_price_tracker_bot](https://t.me/momo_price_tracker_bo
 
 執行 sqls folder底下放置的SQL file，或者可以自行使用其他db migration 工具
 ### 環境變數
-- DB_HOST
-- DB_NAME
-- DB_USER
-- DB_PASSWORD
-- BOT_TOKEN
+
+
+| 環境變數 | 說明 |
+| -------- | ---- |
+| DB_HOST  | Database host    |
+| DB_NAME  | Database name     |
+| DB_USER  | Database user     |
+| DB_PASSWORD| Database usre's password     |
+| BOT_TOKEN| Telegram bot token     |
+| WEBHOOK_URL(Optional)| If you use Heroku url like this **https://{AppName}.herokuapp.com**     |
+| TELEGRAM_BOT_MODE| default: polling, [polling,webhook]     |
+
 ### Telegram bot
 加入 [telegram botfather](https://t.me/botfather "telegram botfather")並建立一個機器人，取得 **token**，後續須設定環境變數 **BOT_TOKEN**
 
