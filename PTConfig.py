@@ -15,12 +15,16 @@ MOMO_NAME_PATH = 'p.fprdTitle'
 MOMO_SINGLE_PRICE_PATH = 'td.priceTxtArea b'
 MOMO_TWO_PRICE_PATH = 'td.priceArea b'
 
+WEBHOOK_URL = os.getenv('WEBHOOK_URL')
+
 USER_SUB_GOOD_LIMITED = 11
 
 DB_HOST = os.getenv('DB_HOST')
 DB_NAME = os.getenv('DB_NAME')
 DB_USER = os.getenv('DB_USER')
 DB_PASSWORD = os.getenv('DB_PASSWORD')
+
+LOGGING_LEVEL = os.getenv('LOGGING_LEVEL')
 
 
 def momo_good_url():

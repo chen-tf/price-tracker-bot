@@ -1,5 +1,6 @@
 # coding: utf-8
 import logging
+import threading
 import uuid
 
 import requests
@@ -15,6 +16,8 @@ good_url = PTConfig.momo_good_url()
 basic_headers = {
     'User-Agent': PTConfig.USER_AGENT
 }
+logger = logging.getLogger('Service')
+momo_request_lock = threading.Lock()  # control the number of request
 
 
 def upsert_user(user_id, chat_id):
@@ -66,8 +69,12 @@ def add_good_info(good_info):
 
 
 def _get_good_info_from_momo(i_code):
+    momo_request_lock.acquire()
+    logger.debug('_get_good_info_from_momo lock acquired')
     params = {'i_code': i_code}
     response = requests.request("GET", good_url, params=params, headers=basic_headers)
+    momo_request_lock.release()
+    logger.debug('_get_good_info_from_momo lock released')
     return response.text
 
 
@@ -76,13 +83,13 @@ def _format_price(price):
 
 
 def get_good_info(good_id):
-    logging.info("good_id %s", good_id)
+    logger.info("good_id %s", good_id)
     response = _get_good_info_from_momo(good_id)
     soup = BeautifulSoup(response, "html.parser")
     good_name = soup.select(PTConfig.MOMO_NAME_PATH)[0].text
-    logging.info("good_name %s", good_name)
+    logger.info("good_name %s", good_name)
     price = _get_price_by_bs4(soup)
-    logging.info("price %s", price)
+    logger.info("price %s", price)
     return GoodInfo(good_id=good_id, name=good_name, price=price)
 
 
@@ -94,7 +101,7 @@ def _get_price_by_bs4(soup):
 
 
 def sync_price():
-    logging.debug('price syncer started')
+    logger.info('Price syncer started')
     for good_info in _find_all_good():
         try:
             good_id = good_info.good_id
@@ -115,8 +122,8 @@ def sync_price():
                 Bot.send(msg % (new_good_info.name, new_good_info.price, original_price), chat_id)
                 success_notified.append(cheaper_record[0])
         except Exception as e:
-            logging.error(e)
-    logging.debug('price syncer finished')
+            logger.error(e)
+    logger.info('Price syncer finished')
 
 
 def _find_all_good():
