@@ -66,11 +66,14 @@ def add_good_info(good_info):
     pool.putconn(conn, close=True)
 
 
+momo_session = requests.Session()
+
+
 def _get_good_info_from_momo(i_code):
     momo_request_lock.acquire()
     logger.debug('_get_good_info_from_momo lock acquired')
     params = {'i_code': i_code}
-    response = requests.request("GET", good_url, params=params, headers=basic_headers)
+    response = momo_session.request("GET", good_url, params=params, headers=basic_headers)
     momo_request_lock.release()
     logger.debug('_get_good_info_from_momo lock released')
     return response.text
