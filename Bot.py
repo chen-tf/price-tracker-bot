@@ -31,7 +31,7 @@ def run():
         bot_updater.start_webhook(listen="0.0.0.0",
                                   port=port,
                                   url_path=PTConfig.BOT_TOKEN,
-                                  webhook_url="https://momo-price-tracker.herokuapp.com/" + PTConfig.BOT_TOKEN)
+                                  webhook_url=PTConfig.WEBHOOK_URL + PTConfig.BOT_TOKEN)
         bot_dispatcher = bot_updater.dispatcher
 
     # add handlers
