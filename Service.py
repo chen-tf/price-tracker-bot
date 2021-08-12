@@ -18,53 +18,51 @@ basic_headers = {
 }
 logger = logging.getLogger('Service')
 momo_request_lock = threading.Lock()  # control the number of request
+pool = DataSource.get_pool()
 
 
 def upsert_user(user_id, chat_id):
-    pool = DataSource.get_pool()
     conn = pool.getconn()
-    cursor = conn.cursor()
-    sql = '''INSERT INTO public."user"
-    (id, chat_id)
-    VALUES(%s, %s)
-    ON CONFLICT(id) DO UPDATE
-    SET chat_id = EXCLUDED.chat_id;
-    '''
-    cursor.execute(sql, (user_id, chat_id))
-    conn.commit()
+    with conn:
+        with conn.cursor() as cursor:
+            sql = '''INSERT INTO public."user"
+            (id, chat_id)
+            VALUES(%s, %s)
+            ON CONFLICT(id) DO UPDATE
+            SET chat_id = EXCLUDED.chat_id;
+            '''
+            cursor.execute(sql, (user_id, chat_id))
     pool.putconn(conn, close=True)
 
 
 def add_user_good_info(user_good_info):
-    pool = DataSource.get_pool()
     conn = pool.getconn()
-    cursor = conn.cursor()
-    cursor.execute('select * from "user" where id=%s for update;', (str(user_good_info.user_id),))
-    cursor.execute('select count(1) from user_sub_good where user_id=%s', (str(user_good_info.user_id),))
-    total_size = cursor.fetchone()[0]
-    if total_size >= PTConfig.USER_SUB_GOOD_LIMITED:
-        pool.putconn(conn, close=True)
-        raise PTError.ExceedLimitedSizeError
-    sql = '''INSERT INTO public.user_sub_good
-    (id, user_id, good_id, price, is_notified)
-    VALUES(%s, %s, %s, %s, false)
-    ON CONFLICT(user_id, good_id) DO UPDATE
-    SET price = EXCLUDED.price, is_notified = EXCLUDED.is_notified;
-    '''
-    cursor.execute(sql, (uuid.uuid4(), user_good_info.user_id, user_good_info.good_id, user_good_info.original_price))
-    conn.commit()
+    with conn:
+        with conn.cursor() as cursor:
+            cursor.execute('select * from "user" where id=%s for update;', (str(user_good_info.user_id),))
+            cursor.execute('select count(1) from user_sub_good where user_id=%s', (str(user_good_info.user_id),))
+            total_size = cursor.fetchone()[0]
+            if total_size >= PTConfig.USER_SUB_GOOD_LIMITED:
+                pool.putconn(conn, close=True)
+                raise PTError.ExceedLimitedSizeError
+            sql = '''INSERT INTO public.user_sub_good
+            (id, user_id, good_id, price, is_notified)
+            VALUES(%s, %s, %s, %s, false)
+            ON CONFLICT(user_id, good_id) DO UPDATE
+            SET price = EXCLUDED.price, is_notified = EXCLUDED.is_notified;
+            '''
+            cursor.execute(sql, (uuid.uuid4(), user_good_info.user_id, user_good_info.good_id, user_good_info.original_price))
     pool.putconn(conn, close=True)
 
 
 def add_good_info(good_info):
-    pool = DataSource.get_pool()
     conn = pool.getconn()
-    cursor = conn.cursor()
-    sql = '''INSERT INTO good_info (id, name, price) VALUES(%s, %s, %s) ON CONFLICT(id) DO UPDATE
-    SET name = EXCLUDED.name, price = EXCLUDED.price;
-    '''
-    cursor.execute(sql, (good_info.good_id, good_info.name, good_info.price))
-    conn.commit()
+    with conn:
+        with conn.cursor() as cursor:
+            sql = '''INSERT INTO good_info (id, name, price) VALUES(%s, %s, %s) ON CONFLICT(id) DO UPDATE
+            SET name = EXCLUDED.name, price = EXCLUDED.price;
+            '''
+            cursor.execute(sql, (good_info.good_id, good_info.name, good_info.price))
     pool.putconn(conn, close=True)
 
 
@@ -107,6 +105,7 @@ def sync_price():
             good_id = good_info.good_id
             is_exist = _remove_redundant_good_info(good_info.good_id)
             if not is_exist:
+                logger.debug('%s not exist', good_id)
                 continue
             new_good_info = get_good_info(good_id)
             add_good_info(new_good_info)
@@ -121,103 +120,102 @@ def sync_price():
                 original_price = cheaper_record[2]
                 Bot.send(msg % (new_good_info.name, new_good_info.price, original_price), chat_id)
                 success_notified.append(cheaper_record[0])
+            _mark_is_notified_by_id(success_notified)
         except Exception as e:
             logger.error(e)
     logger.info('Price syncer finished')
 
 
 def _find_all_good():
-    pool = DataSource.get_pool()
     conn = pool.getconn()
-    cursor = conn.cursor()
-    sql = '''select id,price,name from good_info;
-        '''
-    cursor.execute(sql)
-    all_results = cursor.fetchall()
-    pool.putconn(conn, close=True)
     goods = []
+    with conn:
+        with conn.cursor() as cursor:
+            sql = '''select id,price,name from good_info;
+                '''
+            cursor.execute(sql)
+            all_results = cursor.fetchall()
+    pool.putconn(conn, close=True)
     for result in all_results:
         goods.append(GoodInfo(good_id=result[0], price=result[1], name=result[2]))
     return goods
 
 
 def _remove_redundant_good_info(good_id):
-    pool = DataSource.get_pool()
     conn = pool.getconn()
-    cursor = conn.cursor()
-    sql = '''select id from user_sub_good where good_id=%s LIMIT 1;
-            '''
-    cursor.execute(sql, (good_id,))
-    is_exist = len(cursor.fetchall()) > 0
-    if is_exist:
-        pool.putconn(conn, close=True)
-        return True
-    sql = '''DELETE FROM public.good_info
-    WHERE id=%s;
-    '''
-    cursor.execute(sql, (good_id,))
-    conn.commit()
+    is_exist = False
+    with conn:
+        with conn.cursor() as cursor:
+            sql = '''select id from user_sub_good where good_id=%s LIMIT 1;
+                    '''
+            cursor.execute(sql, (good_id,))
+            is_exist = len(cursor.fetchall()) > 0
+            if not is_exist:
+                sql = '''DELETE FROM public.good_info
+                WHERE id=%s;
+                '''
+                cursor.execute(sql, (good_id,))
     pool.putconn(conn, close=True)
+    return is_exist
 
 
 def _find_user_sub_goods_price_higher(new_price, good_id):
-    pool = DataSource.get_pool()
     conn = pool.getconn()
-    cursor = conn.cursor()
-    sql = '''select usg.id,usg.user_id, usg.price, u.chat_id from user_sub_good usg
-    join "user" u on  usg.user_id = u.id
-    where usg.good_id = %s and usg.price > %s and usg.is_notified = false;
-    '''
-    cursor.execute(sql, (good_id, new_price))
-    all_results = cursor.fetchall()
+    all_results = []
+    with conn:
+        with conn.cursor() as cursor:
+            sql = '''select usg.id,usg.user_id, usg.price, u.chat_id from user_sub_good usg
+            join "user" u on  usg.user_id = u.id
+            where usg.good_id = %s and usg.price > %s and usg.is_notified = false;
+            '''
+            cursor.execute(sql, (good_id, new_price))
+            all_results = cursor.fetchall()
     pool.putconn(conn, close=True)
     return all_results
 
 
 def _reset_higher_user_sub(good_id):
-    pool = DataSource.get_pool()
     conn = pool.getconn()
-    cursor = conn.cursor()
-    sql = '''update user_sub_good set is_notified=false where good_id=%s;
-        '''
-    cursor.execute(sql, (good_id,))
-    conn.commit()
+    with conn:
+        with conn.cursor() as cursor:
+            sql = '''update user_sub_good set is_notified=false where good_id=%s;
+                '''
+            cursor.execute(sql, (good_id,))
     pool.putconn(conn, close=True)
 
 
 def _mark_is_notified_by_id(ids):
     if len(ids) < 1:
         return
-    pool = DataSource.get_pool()
     conn = pool.getconn()
-    cursor = conn.cursor()
-    sql = '''update user_sub_good set is_notified=true where id in (%s);
-        '''
-    cursor.execute(sql, ids)
-    conn.commit()
+    with conn:
+        with conn.cursor() as cursor:
+            sql = '''update user_sub_good set is_notified=true where id in (%s);
+                '''
+            cursor.execute(sql, ids)
     pool.putconn(conn, close=True)
 
 
 def find_user_sub_goods(user_id):
-    pool = DataSource.get_pool()
     conn = pool.getconn()
-    cursor = conn.cursor()
-    sql = '''select gi.name, usg.price from user_sub_good usg
-        join good_info gi on gi.id = usg.good_id where usg.user_id = %s;
-        '''
-    cursor.execute(sql, (user_id,))
-    all_results = cursor.fetchall()
+    all_results = []
+    with conn:
+        with conn.cursor() as cursor:
+            sql = '''select gi.name, usg.price from user_sub_good usg
+                join good_info gi on gi.id = usg.good_id where usg.user_id = %s;
+                '''
+            cursor.execute(sql, (user_id,))
+            all_results = cursor.fetchall()
     pool.putconn(conn, close=True)
     return all_results
 
 
 def clear(user_id):
-    pool = DataSource.get_pool()
     conn = pool.getconn()
-    cursor = conn.cursor()
-    sql = '''DELETE FROM public.user_sub_good
-    WHERE user_id=%s;
-    '''
-    cursor.execute(sql, (user_id,))
-    conn.commit()
+    with conn:
+        with conn.cursor() as cursor:
+            sql = '''DELETE FROM public.user_sub_good
+            WHERE user_id=%s;
+            '''
+            cursor.execute(sql, (user_id,))
     pool.putconn(conn, close=True)
