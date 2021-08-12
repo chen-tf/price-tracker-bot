@@ -1,5 +1,6 @@
 # coding: utf-8
 import logging
+import threading
 import uuid
 
 import requests
@@ -16,6 +17,7 @@ basic_headers = {
     'User-Agent': PTConfig.USER_AGENT
 }
 logger = logging.getLogger('Service')
+momo_request_lock = threading.Lock()  # control the number of request
 
 
 def upsert_user(user_id, chat_id):
@@ -67,8 +69,12 @@ def add_good_info(good_info):
 
 
 def _get_good_info_from_momo(i_code):
+    momo_request_lock.acquire()
+    logger.debug('_get_good_info_from_momo lock acquired')
     params = {'i_code': i_code}
     response = requests.request("GET", good_url, params=params, headers=basic_headers)
+    momo_request_lock.release()
+    logger.debug('_get_good_info_from_momo lock released')
     return response.text
 
 
