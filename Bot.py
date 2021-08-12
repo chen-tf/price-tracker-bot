@@ -13,9 +13,8 @@ from Service import get_good_info, add_good_info, add_user_good_info, upsert_use
 
 updater = Updater(token=PTConfig.BOT_TOKEN, use_context=True)
 dispatcher = updater.dispatcher
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=logging.INFO)
 bot = telegram.Bot(token=PTConfig.BOT_TOKEN)
+logger = logging.getLogger('Bot')
 
 
 def run():
@@ -52,7 +51,6 @@ def run():
 
 
 def start(update, context):
-    print('Bot Start')
     chat_id = update.message.chat_id
     user_id = update.message.from_user.id
     upsert_user(user_id, chat_id)
@@ -86,7 +84,7 @@ def auto_add_good(update, context):
         except PTError.ExceedLimitedSizeError:
             context.bot.send_message(chat_id=update.effective_chat.id, text='追蹤物品已達11件')
     except Exception as e:
-        print(e)
+        logger.error("Catch an exception.", exc_info=True)
         context.bot.send_message(chat_id=update.effective_chat.id, text='無效momo商品連結')
 
 
