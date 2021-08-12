@@ -58,9 +58,6 @@ def start(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text=msg)
 
 
-momo_session = requests.Session()
-
-
 def auto_add_good(update, context):
     from urllib.parse import urlparse
     from urllib.parse import parse_qs
@@ -68,7 +65,7 @@ def auto_add_good(update, context):
         url = update.message.text
         if 'https://momo.dm' in url:
             match = re.search('https.*momo.dm.*', url)
-            response = momo_session.request("GET", match.group(0), headers=Service.basic_headers)
+            response = requests.request("GET", match.group(0), headers=Service.basic_headers)
             url = response.url
         r = urlparse(url)
         d = parse_qs(r.query)
