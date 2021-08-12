@@ -20,7 +20,7 @@ if __name__ == '__main__':
 
 
 def my_job():
-    schedule.every(1).hours.do(Service.sync_price)
+    schedule.every(PTConfig.PERIOD_HOUR).hours.do(Service.sync_price)
     while True:
         schedule.run_pending()
         time.sleep(2)
