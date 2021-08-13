@@ -8,7 +8,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 import Service
 import PTConfig
 import PTError
-from Entity import UserGoodInfo
+from Entity import UserGoodInfo, GoodInfo
 from Service import get_good_info, add_good_info, add_user_good_info, upsert_user
 
 updater = Updater(token=PTConfig.BOT_TOKEN, use_context=True)
@@ -84,9 +84,11 @@ def auto_add_good(update, context):
         add_good_info(good_info)
         user_good_info = UserGoodInfo(user_id=user_id, chat_id=chat_id, good_id=good_id, original_price=good_info.price,
                                       is_notified=False)
-
+        stock_state_string = '可購買'
+        if good_info.stock_state == GoodInfo.STOCK_STATE_OUT_OF_STOCK:
+            stock_state_string = '缺貨中，請等待上架後通知'
         add_user_good_info(user_good_info)
-        msg = '成功新增\n商品名稱:%s\n價格:%s' % (good_info.name, good_info.price)
+        msg = '成功新增\n商品名稱:%s\n價格:%s\n狀態:%s' % (good_info.name, good_info.price, stock_state_string)
         context.bot.send_message(chat_id=update.effective_chat.id, text=msg)
     except PTError.CrawlerParseError:
         context.bot.send_message(chat_id=update.effective_chat.id, text='商品頁面解析失敗')
@@ -105,10 +107,15 @@ def my(update, context):
     if len(my_goods) == 0:
         context.bot.send_message(chat_id=update.effective_chat.id, text='尚未追蹤商品')
         return
-    msg = '====\n商品名稱:%s\n追蹤價格:%s\n====\n'
+    msg = '====\n商品名稱:%s\n追蹤價格:%s\n狀態:%s\n====\n'
     msgs = '追蹤清單\n'
     for my_good in my_goods:
-        msgs = msgs + (msg % my_good)
+        my_good = list(my_good)
+        stock_state_string = '可購買'
+        if my_good[2] == GoodInfo.STOCK_STATE_OUT_OF_STOCK:
+            stock_state_string = '缺貨中，請等待上架後通知'
+        my_good[2] = stock_state_string
+        msgs = msgs + (msg % tuple(my_good))
     context.bot.send_message(chat_id=update.effective_chat.id, text=msgs)
 
 

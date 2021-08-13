@@ -64,7 +64,7 @@ def add_user_good_info(user_good_info):
                 SET price = EXCLUDED.price, is_notified = EXCLUDED.is_notified;
                 '''
                 cursor.execute(sql, (uuid.uuid4(), user_good_info.user_id, user_good_info.good_id,
-                                 user_good_info.original_price))
+                                     user_good_info.original_price))
     pool.putconn(conn, close=True)
 
 
@@ -72,11 +72,13 @@ def add_good_info(good_info):
     conn = pool.getconn()
     with conn:
         with conn.cursor() as cursor:
-            sql = '''INSERT INTO good_info (id, name, price, checksum) VALUES(%s, %s, %s, %s) 
+            sql = '''INSERT INTO good_info (id, name, price, checksum,stock_state) VALUES(%s, %s, %s, %s, %s) 
             ON CONFLICT(id) DO UPDATE
-            SET name = EXCLUDED.name, price = EXCLUDED.price, checksum = EXCLUDED.checksum;
+            SET name = EXCLUDED.name, price = EXCLUDED.price, checksum = EXCLUDED.checksum
+            , stock_state = EXCLUDED.stock_state;
             '''
-            cursor.execute(sql, (good_info.good_id, good_info.name, good_info.price, good_info.checksum))
+            cursor.execute(sql, (
+                good_info.good_id, good_info.name, good_info.price, good_info.checksum, good_info.stock_state))
     pool.putconn(conn, close=True)
 
 
@@ -115,10 +117,14 @@ def get_good_info(good_id=None, session=requests.Session(), previous_good_info=N
         logger.info("good_name %s", good_name)
         price = _get_price_by_bs4(soup)
         logger.info("price %s", price)
+        stock_state = GoodInfo.STOCK_STATE_IN_STOCK
+        if soup.find('li', id='buyNowBtn') is None:
+            stock_state = GoodInfo.STOCK_STATE_OUT_OF_STOCK
+        logger.info("stock_state %s", stock_state)
     except Exception as e:
         logger.error("Parse good_info and catch an exception. good_id:%s", good_id, exc_info=True)
         raise PTError.CrawlerParseError
-    return GoodInfo(good_id=good_id, name=good_name, price=price, checksum=response_checksum)
+    return GoodInfo(good_id=good_id, name=good_name, price=price, checksum=response_checksum, stock_state=stock_state)
 
 
 def _get_price_by_bs4(soup):
@@ -152,6 +158,14 @@ def sync_price():
                 Bot.send(msg % (new_good_info.name, new_good_info.price, original_price), chat_id)
                 success_notified.append(cheaper_record[0])
             _mark_is_notified_by_id(success_notified)
+
+            # Notify if good's stock change
+            if new_good_info.stock_state == GoodInfo.STOCK_STATE_IN_STOCK and good_info.stock_state == GoodInfo.STOCK_STATE_OUT_OF_STOCK:
+                logger.info('%s is in stock!', new_good_info.name)
+                follow_good_chat_ids = _find_user_by_good_id(good_id)
+                msg = '%s\n目前已經可購買！！！'
+                for follow_good_chat_id in follow_good_chat_ids:
+                    Bot.send(msg % new_good_info.name, follow_good_chat_id)
         except Exception as e:
             logger.error(e, exc_info=True)
     logger.info('Price syncer finished')
@@ -162,13 +176,14 @@ def _find_all_good():
     goods = []
     with conn:
         with conn.cursor() as cursor:
-            sql = '''select id,price,name,checksum from good_info;
+            sql = '''select id,price,name,checksum,COALESCE(stock_state,1) from good_info;
                 '''
             cursor.execute(sql)
             all_results = cursor.fetchall()
     pool.putconn(conn, close=True)
     for result in all_results:
-        goods.append(GoodInfo(good_id=result[0], price=result[1], name=result[2], checksum=result[3]))
+        goods.append(
+            GoodInfo(good_id=result[0], price=result[1], name=result[2], checksum=result[3], stock_state=result[4]))
     return goods
 
 
@@ -205,6 +220,21 @@ def _find_user_sub_goods_price_higher(new_price, good_id):
     return all_results
 
 
+def _find_user_by_good_id(good_id):
+    conn = pool.getconn()
+    all_results = []
+    with conn:
+        with conn.cursor() as cursor:
+            sql = '''select u.chat_id from user_sub_good usg
+            join "user" u on  usg.user_id = u.id
+            where usg.good_id = %s;
+            '''
+            cursor.execute(sql, (good_id,))
+            all_results = cursor.fetchall()
+    pool.putconn(conn, close=True)
+    return all_results
+
+
 def _reset_higher_user_sub(good_id):
     conn = pool.getconn()
     with conn:
@@ -232,7 +262,7 @@ def find_user_sub_goods(user_id):
     all_results = []
     with conn:
         with conn.cursor() as cursor:
-            sql = '''select gi.name, usg.price from user_sub_good usg
+            sql = '''select gi.name, usg.price, COALESCE(gi.stock_state,1) from user_sub_good usg
                 join good_info gi on gi.id = usg.good_id where usg.user_id = %s;
                 '''
             cursor.execute(sql, (user_id,))

@@ -14,13 +14,20 @@ class UserGoodInfo:
 
 
 class GoodInfo:
+    STOCK_STATE_OUT_OF_STOCK = 0
+    STOCK_STATE_IN_STOCK = 1
     good_id: str
     price: int
     name: str
     checksum: str
+    stock_state: int
 
-    def __init__(self, good_id: str, price: int, name: str, checksum: str) -> None:
+    def __init__(self, good_id: str, price: int, name: str, checksum: str, stock_state: int) -> None:
         self.good_id = good_id
         self.price = price
         self.name = name
         self.checksum = checksum
+        if stock_state is None:
+            self.stock_state = 1
+        else:
+            self.stock_state = stock_state
