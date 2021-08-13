@@ -165,7 +165,7 @@ def sync_price():
                 follow_good_chat_ids = _find_user_by_good_id(good_id)
                 msg = '%s\n目前已經可購買！！！'
                 for follow_good_chat_id in follow_good_chat_ids:
-                    Bot.send(msg % new_good_info.name, follow_good_chat_id)
+                    Bot.send(msg % new_good_info.name, str(follow_good_chat_id[0]))
         except Exception as e:
             logger.error(e, exc_info=True)
     logger.info('Price syncer finished')
