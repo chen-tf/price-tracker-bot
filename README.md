@@ -1,6 +1,15 @@
 ## 簡介
 price-tracker-bot is a telegram bot that can trace the price on [momoshop](https://www.momoshop.com.tw "momoshop").
 
+---
+
+## 功能
+
+- 降價通知
+- 上架通知
+- 收藏商品
+- 清空已收藏商品
+- 顯示目前已收藏商品
 
 ---
 ## Demo
