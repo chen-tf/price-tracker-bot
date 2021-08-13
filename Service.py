@@ -35,6 +35,17 @@ def upsert_user(user_id, chat_id):
     pool.putconn(conn, close=True)
 
 
+def count_user_good_info_sum(user_id):
+    conn = pool.getconn()
+    total_size = 0
+    with conn:
+        with conn.cursor() as cursor:
+            cursor.execute('select count(1) from user_sub_good where user_id=%s', (str(user_id),))
+            total_size = cursor.fetchone()[0]
+    pool.putconn(conn, close=True)
+    return total_size
+
+
 def add_user_good_info(user_good_info):
     conn = pool.getconn()
     with conn:
@@ -43,15 +54,16 @@ def add_user_good_info(user_good_info):
             cursor.execute('select count(1) from user_sub_good where user_id=%s', (str(user_good_info.user_id),))
             total_size = cursor.fetchone()[0]
             if total_size >= PTConfig.USER_SUB_GOOD_LIMITED:
-                pool.putconn(conn, close=True)
                 raise PTError.ExceedLimitedSizeError
-            sql = '''INSERT INTO public.user_sub_good
-            (id, user_id, good_id, price, is_notified)
-            VALUES(%s, %s, %s, %s, false)
-            ON CONFLICT(user_id, good_id) DO UPDATE
-            SET price = EXCLUDED.price, is_notified = EXCLUDED.is_notified;
-            '''
-            cursor.execute(sql, (uuid.uuid4(), user_good_info.user_id, user_good_info.good_id, user_good_info.original_price))
+            else:
+                sql = '''INSERT INTO public.user_sub_good
+                (id, user_id, good_id, price, is_notified)
+                VALUES(%s, %s, %s, %s, false)
+                ON CONFLICT(user_id, good_id) DO UPDATE
+                SET price = EXCLUDED.price, is_notified = EXCLUDED.is_notified;
+                '''
+                cursor.execute(sql, (uuid.uuid4(), user_good_info.user_id, user_good_info.good_id,
+                                 user_good_info.original_price))
     pool.putconn(conn, close=True)
 
 
@@ -84,10 +96,14 @@ def get_good_info(good_id=None, session=requests.Session()):
     logger.info("good_id %s", good_id)
     response = _get_good_info_from_momo(i_code=good_id, session=session)
     soup = BeautifulSoup(response, "lxml")
-    good_name = soup.select(PTConfig.MOMO_NAME_PATH)[0].text
-    logger.info("good_name %s", good_name)
-    price = _get_price_by_bs4(soup)
-    logger.info("price %s", price)
+    try:
+        good_name = soup.select(PTConfig.MOMO_NAME_PATH)[0].text
+        logger.info("good_name %s", good_name)
+        price = _get_price_by_bs4(soup)
+        logger.info("price %s", price)
+    except Exception as e:
+        logger.error("Parse good_info and catch an exception. good_id:%s", good_id, exc_info=True)
+        raise PTError.CrawlerParseError
     return GoodInfo(good_id=good_id, name=good_name, price=price)
 
 

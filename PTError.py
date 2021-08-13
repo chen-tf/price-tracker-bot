@@ -7,3 +7,8 @@ class Error(Exception):
 class ExceedLimitedSizeError(Error):
     """Raised when the user sub good size is over 11"""
     pass
+
+
+class CrawlerParseError(Error):
+    """Raised when parse momo good's info page error."""
+    pass
