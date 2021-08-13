@@ -66,11 +66,11 @@ def add_good_info(good_info):
     pool.putconn(conn, close=True)
 
 
-def _get_good_info_from_momo(i_code):
+def _get_good_info_from_momo(i_code=None, session=requests.Session()):
     momo_request_lock.acquire()
     logger.debug('_get_good_info_from_momo lock acquired')
     params = {'i_code': i_code}
-    response = requests.request("GET", good_url, params=params, headers=basic_headers)
+    response = session.request("GET", good_url, params=params, headers=basic_headers)
     momo_request_lock.release()
     logger.debug('_get_good_info_from_momo lock released')
     return response.text
@@ -80,10 +80,10 @@ def _format_price(price):
     return int(str(price).strip().replace(',', ''))
 
 
-def get_good_info(good_id):
+def get_good_info(good_id=None, session=requests.Session()):
     logger.info("good_id %s", good_id)
-    response = _get_good_info_from_momo(good_id)
-    soup = BeautifulSoup(response, "html.parser")
+    response = _get_good_info_from_momo(i_code=good_id, session=session)
+    soup = BeautifulSoup(response, "lxml")
     good_name = soup.select(PTConfig.MOMO_NAME_PATH)[0].text
     logger.info("good_name %s", good_name)
     price = _get_price_by_bs4(soup)
@@ -100,6 +100,7 @@ def _get_price_by_bs4(soup):
 
 def sync_price():
     logger.info('Price syncer started')
+    session = requests.Session()
     for good_info in _find_all_good():
         try:
             good_id = good_info.good_id
@@ -107,7 +108,7 @@ def sync_price():
             if not is_exist:
                 logger.debug('%s not exist', good_id)
                 continue
-            new_good_info = get_good_info(good_id)
+            new_good_info = get_good_info(good_id=good_id, session=session)
             add_good_info(new_good_info)
             cheaper_records = {}
             if new_good_info.price != good_info.price:
