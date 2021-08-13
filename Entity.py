@@ -17,8 +17,10 @@ class GoodInfo:
     good_id: str
     price: int
     name: str
+    checksum: str
 
-    def __init__(self, good_id: str, price: int, name: str) -> None:
+    def __init__(self, good_id: str, price: int, name: str, checksum: str) -> None:
         self.good_id = good_id
         self.price = price
         self.name = name
+        self.checksum = checksum

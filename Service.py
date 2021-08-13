@@ -1,4 +1,5 @@
 # coding: utf-8
+import hashlib
 import logging
 import threading
 import uuid
@@ -6,10 +7,10 @@ import uuid
 import requests
 from bs4 import BeautifulSoup
 
+import Bot
 import DataSource
 import PTConfig
 import PTError
-import Bot
 from Entity import GoodInfo
 
 good_url = PTConfig.momo_good_url()
@@ -71,10 +72,11 @@ def add_good_info(good_info):
     conn = pool.getconn()
     with conn:
         with conn.cursor() as cursor:
-            sql = '''INSERT INTO good_info (id, name, price) VALUES(%s, %s, %s) ON CONFLICT(id) DO UPDATE
-            SET name = EXCLUDED.name, price = EXCLUDED.price;
+            sql = '''INSERT INTO good_info (id, name, price, checksum) VALUES(%s, %s, %s, %s) 
+            ON CONFLICT(id) DO UPDATE
+            SET name = EXCLUDED.name, price = EXCLUDED.price, checksum = EXCLUDED.checksum;
             '''
-            cursor.execute(sql, (good_info.good_id, good_info.name, good_info.price))
+            cursor.execute(sql, (good_info.good_id, good_info.name, good_info.price, good_info.checksum))
     pool.putconn(conn, close=True)
 
 
@@ -92,9 +94,21 @@ def _format_price(price):
     return int(str(price).strip().replace(',', ''))
 
 
-def get_good_info(good_id=None, session=requests.Session()):
+def _get_checksum(content):
+    md5_hash = hashlib.md5()
+    md5_hash.update(content.encode('utf-8'))
+    return md5_hash.hexdigest()
+
+
+def get_good_info(good_id=None, session=requests.Session(), previous_good_info=None):
     logger.info("good_id %s", good_id)
     response = _get_good_info_from_momo(i_code=good_id, session=session)
+    response_checksum = _get_checksum(response)
+
+    # Save the parse time if the checksum value is equal.
+    if previous_good_info is not None and response_checksum == previous_good_info.checksum:
+        return previous_good_info
+
     soup = BeautifulSoup(response, "lxml")
     try:
         good_name = soup.select(PTConfig.MOMO_NAME_PATH)[0].text
@@ -104,7 +118,7 @@ def get_good_info(good_id=None, session=requests.Session()):
     except Exception as e:
         logger.error("Parse good_info and catch an exception. good_id:%s", good_id, exc_info=True)
         raise PTError.CrawlerParseError
-    return GoodInfo(good_id=good_id, name=good_name, price=price)
+    return GoodInfo(good_id=good_id, name=good_name, price=price, checksum=response_checksum)
 
 
 def _get_price_by_bs4(soup):
@@ -124,7 +138,7 @@ def sync_price():
             if not is_exist:
                 logger.debug('%s not exist', good_id)
                 continue
-            new_good_info = get_good_info(good_id=good_id, session=session)
+            new_good_info = get_good_info(good_id=good_id, session=session, previous_good_info=good_info)
             add_good_info(new_good_info)
             cheaper_records = {}
             if new_good_info.price != good_info.price:
@@ -139,7 +153,7 @@ def sync_price():
                 success_notified.append(cheaper_record[0])
             _mark_is_notified_by_id(success_notified)
         except Exception as e:
-            logger.error(e)
+            logger.error(e, exc_info=True)
     logger.info('Price syncer finished')
 
 
@@ -148,13 +162,13 @@ def _find_all_good():
     goods = []
     with conn:
         with conn.cursor() as cursor:
-            sql = '''select id,price,name from good_info;
+            sql = '''select id,price,name,checksum from good_info;
                 '''
             cursor.execute(sql)
             all_results = cursor.fetchall()
     pool.putconn(conn, close=True)
     for result in all_results:
-        goods.append(GoodInfo(good_id=result[0], price=result[1], name=result[2]))
+        goods.append(GoodInfo(good_id=result[0], price=result[1], name=result[2], checksum=result[3]))
     return goods
 
 

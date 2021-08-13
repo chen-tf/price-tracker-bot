@@ -1,0 +1,1 @@
+ALTER TABLE public.good_info ADD checksum varchar NULL;
