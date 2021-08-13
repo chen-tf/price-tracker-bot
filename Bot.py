@@ -62,6 +62,10 @@ def auto_add_good(update, context):
     from urllib.parse import urlparse
     from urllib.parse import parse_qs
     try:
+        chat_id = update.message.chat_id
+        user_id = update.message.from_user.id
+        if Service.count_user_good_info_sum(user_id) >= PTConfig.USER_SUB_GOOD_LIMITED:
+            raise PTError.ExceedLimitedSizeError
         url = update.message.text
         if 'https://momo.dm' in url:
             match = re.search('https.*momo.dm.*', url)
@@ -72,17 +76,16 @@ def auto_add_good(update, context):
         good_id = str(d['i_code'][0])
         good_info = get_good_info(good_id=good_id)
         add_good_info(good_info)
-        chat_id = update.message.chat_id
-        user_id = update.message.from_user.id
         user_good_info = UserGoodInfo(user_id=user_id, chat_id=chat_id, good_id=good_id, original_price=good_info.price,
                                       is_notified=False)
 
-        try:
-            add_user_good_info(user_good_info)
-            msg = '成功新增\n商品名稱:%s\n價格:%s' % (good_info.name, good_info.price)
-            context.bot.send_message(chat_id=update.effective_chat.id, text=msg)
-        except PTError.ExceedLimitedSizeError:
-            context.bot.send_message(chat_id=update.effective_chat.id, text='追蹤物品已達11件')
+        add_user_good_info(user_good_info)
+        msg = '成功新增\n商品名稱:%s\n價格:%s' % (good_info.name, good_info.price)
+        context.bot.send_message(chat_id=update.effective_chat.id, text=msg)
+    except PTError.CrawlerParseError:
+        context.bot.send_message(chat_id=update.effective_chat.id, text='商品頁面解析失敗')
+    except PTError.ExceedLimitedSizeError:
+        context.bot.send_message(chat_id=update.effective_chat.id, text='追蹤物品已達%s件' % PTConfig.USER_SUB_GOOD_LIMITED)
     except Exception as e:
         logger.error("Catch an exception.", exc_info=True)
         context.bot.send_message(chat_id=update.effective_chat.id, text='無效momo商品連結')
