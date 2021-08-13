@@ -12,3 +12,8 @@ class ExceedLimitedSizeError(Error):
 class CrawlerParseError(Error):
     """Raised when parse momo good's info page error."""
     pass
+
+
+class NotValidMomoURL(Error):
+    """Raised when url not valid."""
+    pass
