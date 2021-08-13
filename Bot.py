@@ -70,7 +70,7 @@ def auto_add_good(update, context):
         r = urlparse(url)
         d = parse_qs(r.query)
         good_id = str(d['i_code'][0])
-        good_info = get_good_info(good_id)
+        good_info = get_good_info(good_id=good_id)
         add_good_info(good_info)
         chat_id = update.message.chat_id
         user_id = update.message.from_user.id
