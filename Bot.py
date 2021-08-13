@@ -107,7 +107,7 @@ def my(update, context):
     if len(my_goods) == 0:
         context.bot.send_message(chat_id=update.effective_chat.id, text='尚未追蹤商品')
         return
-    msg = '====\n商品名稱:%s\n追蹤價格:%s\n狀態:%s\n====\n'
+    msg = '====\n商品名稱:%s\n追蹤價格:%s\n狀態:%s\n%s\n====\n'
     msgs = '追蹤清單\n'
     for my_good in my_goods:
         my_good = list(my_good)
@@ -115,6 +115,8 @@ def my(update, context):
         if my_good[2] == GoodInfo.STOCK_STATE_OUT_OF_STOCK:
             stock_state_string = '缺貨中，請等待上架後通知'
         my_good[2] = stock_state_string
+        good_id = my_good[3]
+        my_good[3] = Service.generate_momo_url_by_good_id(good_id)
         msgs = msgs + (msg % tuple(my_good))
     context.bot.send_message(chat_id=update.effective_chat.id, text=msgs)
 

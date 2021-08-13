@@ -150,12 +150,13 @@ def sync_price():
             if new_good_info.price != good_info.price:
                 _reset_higher_user_sub(good_id)
                 cheaper_records = _find_user_sub_goods_price_higher(new_good_info.price, good_id)
-            msg = '%s\n目前價格為%s, 低於當初紀錄價格%s'
+            msg = '%s\n目前價格為%s, 低於當初紀錄價格%s\n\n%s'
             success_notified = []
+            good_page_url = generate_momo_url_by_good_id(good_id)
             for cheaper_record in cheaper_records:
                 chat_id = cheaper_record[3]
                 original_price = cheaper_record[2]
-                Bot.send(msg % (new_good_info.name, new_good_info.price, original_price), chat_id)
+                Bot.send(msg % (new_good_info.name, new_good_info.price, original_price, good_page_url), chat_id)
                 success_notified.append(cheaper_record[0])
             _mark_is_notified_by_id(success_notified)
 
@@ -163,9 +164,9 @@ def sync_price():
             if new_good_info.stock_state == GoodInfo.STOCK_STATE_IN_STOCK and good_info.stock_state == GoodInfo.STOCK_STATE_OUT_OF_STOCK:
                 logger.info('%s is in stock!', new_good_info.name)
                 follow_good_chat_ids = _find_user_by_good_id(good_id)
-                msg = '%s\n目前已經可購買！！！'
+                msg = '%s\n目前已經可購買！！！\n\n%s'
                 for follow_good_chat_id in follow_good_chat_ids:
-                    Bot.send(msg % new_good_info.name, str(follow_good_chat_id[0]))
+                    Bot.send(msg % (new_good_info.name, good_page_url), str(follow_good_chat_id[0]))
         except Exception as e:
             logger.error(e, exc_info=True)
     logger.info('Price syncer finished')
@@ -262,7 +263,7 @@ def find_user_sub_goods(user_id):
     all_results = []
     with conn:
         with conn.cursor() as cursor:
-            sql = '''select gi.name, usg.price, COALESCE(gi.stock_state,1) from user_sub_good usg
+            sql = '''select gi.name, usg.price, COALESCE(gi.stock_state,1),usg.good_id from user_sub_good usg
                 join good_info gi on gi.id = usg.good_id where usg.user_id = %s;
                 '''
             cursor.execute(sql, (user_id,))
@@ -280,3 +281,7 @@ def clear(user_id):
             '''
             cursor.execute(sql, (user_id,))
     pool.putconn(conn, close=True)
+
+
+def generate_momo_url_by_good_id(good_id):
+    return (PTConfig.MOMO_URL + PTConfig.MOMO_GOOD_URI + "?i_code=%s") % str(good_id)
