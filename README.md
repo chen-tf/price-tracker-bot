@@ -31,7 +31,7 @@ Telegram bot search [@momo_price_tracker_bot](https://t.me/momo_price_tracker_bo
 | DB_HOST  | Database host    |
 | DB_NAME  | Database name     |
 | DB_USER  | Database user     |
-| DB_PASSWORD| Database us's password     |
+| DB_PASSWORD| Database user's password     |
 | BOT_TOKEN| Telegram bot token     |
 | WEBHOOK_URL(Optional)| If you use Heroku url like this **https://{AppName}.herokuapp.com**     |
 | TELEGRAM_BOT_MODE| default: polling, [polling,webhook]     |
