@@ -6,13 +6,18 @@ price-tracker-bot is a telegram bot that can trace the price on [momoshop](https
 ## 功能
 
 - 降價通知
+![降價通知](https://i.imgur.com/CSLhRGW.png)
 - 上架通知
+![上架通知](https://i.imgur.com/jmfC9aH.png)
 - 收藏商品
+![收藏商品](https://i.imgur.com/Ns9uGiA.png)
 - 清空已收藏商品
+![清空已收藏商品](https://i.imgur.com/kVwJVri.png)
 - 顯示目前已收藏商品
+![顯示目前已收藏商品](https://i.imgur.com/l8dgUpj.png)
 
 ---
-## Demo
+## Demo Bot
 Telegram bot search [@momo_price_tracker_bot](https://t.me/momo_price_tracker_bot)
 
 ---
@@ -26,15 +31,16 @@ Telegram bot search [@momo_price_tracker_bot](https://t.me/momo_price_tracker_bo
 ### 環境變數
 
 
-| 環境變數 | 說明 |
-| -------- | ---- |
-| DB_HOST  | Database host    |
-| DB_NAME  | Database name     |
-| DB_USER  | Database user     |
-| DB_PASSWORD| Database user's password     |
-| BOT_TOKEN| Telegram bot token     |
-| WEBHOOK_URL(Optional)| If you use Heroku url like this **https://{AppName}.herokuapp.com**     |
-| TELEGRAM_BOT_MODE| default: polling, [polling,webhook]     |
+| 環境變數              | 說明                                                                |
+| --------------------- | ------------------------------------------------------------------- |
+| DB_HOST               | Database host                                                       |
+| DB_NAME               | Database name                                                       |
+| DB_USER               | Database user                                                       |
+| DB_PASSWORD           | Database user's password                                            |
+| BOT_TOKEN             | Telegram bot token                                                  |
+| WEBHOOK_URL(Optional) | If you use Heroku url like this **https://{AppName}.herokuapp.com** |
+| PERIOD_HOUR                      | Resync latest good's price time period                                                                  |
+| TELEGRAM_BOT_MODE     | default: polling, [polling,webhook]                                 |
 
 ### Telegram bot
 加入 [telegram botfather](https://t.me/botfather "telegram botfather")並建立一個機器人，取得 **token**，後續須設定環境變數 **BOT_TOKEN**
@@ -72,6 +78,11 @@ Scheduler新增`curl --location --request GET 'https://{AppName}.herokuapp.com'`
 ## 執行方式
 `python3 App.py`
 
+### Build simple local postgres env (optional)
+
+```
+docker run -d -p 5432:5432 --name mypostgres --restart always -v postgresql-data:/var/lib/postgresql/data -e POSTGRES_PASSWORD=1234 -d postgres:10.17-alpine3.14
+```
 
 ---
 
@@ -80,3 +91,10 @@ Scheduler新增`curl --location --request GET 'https://{AppName}.herokuapp.com'`
 - /start 顯示目前所支援的指令
 - /my 顯示目前所有追蹤物品清單，以及當下所記錄價格
 - /clear 清除目前所有追蹤物品清單
+
+### Command menu
+You need to say these to @BotFather.
+![](https://i.imgur.com/nskbZPo.png)
+
+Bot can show command menu
+![](https://i.imgur.com/aEHJECc.png)
