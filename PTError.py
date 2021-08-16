@@ -17,3 +17,8 @@ class CrawlerParseError(Error):
 class NotValidMomoURL(Error):
     """Raised when url not valid."""
     pass
+
+
+class UnknownRequestError(Error):
+    """Raised when request unknown erorr"""
+    pass
