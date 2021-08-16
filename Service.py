@@ -126,7 +126,9 @@ def get_good_info(good_id=None, session=requests.Session(), previous_good_info=N
         price = _get_price_by_bs4(soup)
         logger.info("price %s", price)
         stock_state = GoodInfo.STOCK_STATE_IN_STOCK
-        if soup.find('li', id='buyNowBtn') is None:
+        buy_now_btn_not_exist = soup.find('li', id='buyNowBtn') is None
+        out_out_stock_exist = soup.find('li', id='outofstockrestockBtn').find('a', href=None) is not None
+        if buy_now_btn_not_exist or out_out_stock_exist:
             stock_state = GoodInfo.STOCK_STATE_OUT_OF_STOCK
         logger.info("stock_state %s", stock_state)
     except Exception as e:
