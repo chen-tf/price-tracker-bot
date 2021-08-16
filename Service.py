@@ -83,13 +83,20 @@ def add_good_info(good_info):
 
 
 def _get_good_info_from_momo(i_code=None, session=requests.Session()):
-    momo_request_lock.acquire()
-    logger.debug('_get_good_info_from_momo lock acquired')
-    params = {'i_code': i_code}
-    response = session.request("GET", good_url, params=params, headers=basic_headers,
-                               timeout=PTConfig.MOMO_REQUEST_TIMEOUT)
-    momo_request_lock.release()
-    logger.debug('_get_good_info_from_momo lock released')
+    logger.debug('_get_good_info_from_momo lock waiting')
+    momo_request_lock.acquire(timeout=PTConfig.MOMO_REQUEST_TIMEOUT+10)
+    try:
+        logger.debug('_get_good_info_from_momo lock acquired')
+        params = {'i_code': i_code}
+        response = session.request("GET", good_url, params=params, headers=basic_headers,
+                                   timeout=PTConfig.MOMO_REQUEST_TIMEOUT)
+    except Exception as e:
+        logger.debug('_get_good_info_from_momo lock released')
+        logger.error("Get good_info and catch an exception.", exc_info=True)
+        raise PTError.UnknownRequestError
+    finally:
+        momo_request_lock.release()
+        logger.debug('_get_good_info_from_momo lock released')
     return response.text
 
 
