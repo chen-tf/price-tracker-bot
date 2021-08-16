@@ -68,7 +68,7 @@ def auto_add_good(update, context):
         url = update.message.text
         if 'https://momo.dm' in url:
             match = re.search('https.*momo.dm.*', url)
-            response = requests.request("GET", match.group(0), headers=Service.basic_headers)
+            response = requests.request("GET", match.group(0), headers=Service.basic_headers, timeout=PTConfig.MOMO_REQUEST_TIMEOUT)
             url = response.url
         r = urlparse(url)
         d = parse_qs(r.query)
