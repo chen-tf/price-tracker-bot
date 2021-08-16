@@ -86,7 +86,8 @@ def _get_good_info_from_momo(i_code=None, session=requests.Session()):
     momo_request_lock.acquire()
     logger.debug('_get_good_info_from_momo lock acquired')
     params = {'i_code': i_code}
-    response = session.request("GET", good_url, params=params, headers=basic_headers)
+    response = session.request("GET", good_url, params=params, headers=basic_headers,
+                               timeout=PTConfig.MOMO_REQUEST_TIMEOUT)
     momo_request_lock.release()
     logger.debug('_get_good_info_from_momo lock released')
     return response.text

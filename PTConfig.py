@@ -27,6 +27,7 @@ DB_PASSWORD = os.getenv('DB_PASSWORD')
 LOGGING_LEVEL = os.getenv('LOGGING_LEVEL')
 PERIOD_HOUR = int(os.getenv('PERIOD_HOUR', 2))
 
+MOMO_REQUEST_TIMEOUT = 10
 
 def momo_good_url():
     return MOMO_URL + MOMO_GOOD_URI
