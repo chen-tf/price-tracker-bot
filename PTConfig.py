@@ -11,9 +11,6 @@ BOT_TOKEN = os.getenv('BOT_TOKEN')
 MOMO_URL = 'https://m.momoshop.com.tw/'
 MOMO_GOOD_URI = 'goods.momo'
 USER_AGENT = 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:90.0) Gecko/20100101 Firefox/90.0'
-MOMO_NAME_PATH = 'p.fprdTitle'
-MOMO_SINGLE_PRICE_PATH = 'td.priceTxtArea b'
-MOMO_TWO_PRICE_PATH = 'td.priceArea b'
 
 WEBHOOK_URL = os.getenv('WEBHOOK_URL')
 

@@ -121,27 +121,20 @@ def get_good_info(good_id=None, session=requests.Session(), previous_good_info=N
 
     soup = BeautifulSoup(response, "lxml")
     try:
-        good_name = soup.select(PTConfig.MOMO_NAME_PATH)[0].text
+        good_name = soup.find('meta', property='og:title')["content"]
         logger.info("good_name %s", good_name)
-        price = _get_price_by_bs4(soup)
+        price = _format_price(soup.find('meta', property='product:price:amount')["content"])
         logger.info("price %s", price)
-        stock_state = GoodInfo.STOCK_STATE_IN_STOCK
-        buy_now_btn_not_exist = soup.find('li', id='buyNowBtn') is None
-        out_out_stock_exist = soup.find('li', id='outofstockrestockBtn').find('a', href=None) is not None
-        if buy_now_btn_not_exist or out_out_stock_exist:
+        stock_state = soup.find('meta', property='product:availability')["content"]
+        if stock_state == 'in stock':
+            stock_state = GoodInfo.STOCK_STATE_IN_STOCK
+        else:
             stock_state = GoodInfo.STOCK_STATE_OUT_OF_STOCK
         logger.info("stock_state %s", stock_state)
     except Exception as e:
         logger.error("Parse good_info and catch an exception. good_id:%s", good_id, exc_info=True)
         raise PTError.CrawlerParseError
     return GoodInfo(good_id=good_id, name=good_name, price=price, checksum=response_checksum, stock_state=stock_state)
-
-
-def _get_price_by_bs4(soup):
-    try:
-        return _format_price(soup.select(PTConfig.MOMO_SINGLE_PRICE_PATH)[0].text)
-    except Exception as e:
-        return _format_price(soup.select(PTConfig.MOMO_TWO_PRICE_PATH)[0].text)
 
 
 def sync_price():
