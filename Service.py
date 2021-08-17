@@ -6,7 +6,6 @@ import uuid
 
 import requests
 from bs4 import BeautifulSoup
-from fake_useragent import UserAgent
 
 import Bot
 import DataSource
@@ -15,7 +14,6 @@ import PTError
 from Entity import GoodInfo
 
 good_url = PTConfig.momo_good_url()
-user_agent = UserAgent(use_cache_server=False)
 logger = logging.getLogger('Service')
 momo_request_lock = threading.Lock()  # control the number of request
 pool = DataSource.get_pool()
@@ -87,7 +85,7 @@ def _get_good_info_from_momo(i_code=None, session=requests.Session()):
     try:
         logger.debug('_get_good_info_from_momo lock acquired')
         params = {'i_code': i_code}
-        response = session.request("GET", good_url, params=params, headers={'user-agent': str(user_agent.random)},
+        response = session.request("GET", good_url, params=params, headers={'user-agent': PTConfig.USER_AGENT},
                                    timeout=PTConfig.MOMO_REQUEST_TIMEOUT)
     except Exception as e:
         logger.debug('_get_good_info_from_momo lock released')

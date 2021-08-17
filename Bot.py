@@ -3,7 +3,6 @@ import re
 
 import requests
 import telegram
-from fake_useragent import UserAgent
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
 import PTConfig
@@ -16,7 +15,6 @@ updater = Updater(token=PTConfig.BOT_TOKEN, use_context=True)
 dispatcher = updater.dispatcher
 bot = telegram.Bot(token=PTConfig.BOT_TOKEN)
 logger = logging.getLogger('Bot')
-user_agent = UserAgent(use_cache_server=False)
 
 
 def run():
@@ -70,7 +68,7 @@ def auto_add_good(update, context):
         url = update.message.text
         if 'https://momo.dm' in url:
             match = re.search('https.*momo.dm.*', url)
-            response = requests.request("GET", match.group(0), headers={'user-agent': str(user_agent.random)},
+            response = requests.request("GET", match.group(0), headers={'user-agent': PTConfig.USER_AGENT},
                                         timeout=PTConfig.MOMO_REQUEST_TIMEOUT)
             url = response.url
         r = urlparse(url)
