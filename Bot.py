@@ -3,11 +3,12 @@ import re
 
 import requests
 import telegram
+from fake_useragent import UserAgent
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
-import Service
 import PTConfig
 import PTError
+import Service
 from Entity import UserGoodInfo, GoodInfo
 from Service import get_good_info, add_good_info, add_user_good_info, upsert_user
 
@@ -15,6 +16,7 @@ updater = Updater(token=PTConfig.BOT_TOKEN, use_context=True)
 dispatcher = updater.dispatcher
 bot = telegram.Bot(token=PTConfig.BOT_TOKEN)
 logger = logging.getLogger('Bot')
+user_agent = UserAgent(use_cache_server=False)
 
 
 def run():
@@ -68,7 +70,8 @@ def auto_add_good(update, context):
         url = update.message.text
         if 'https://momo.dm' in url:
             match = re.search('https.*momo.dm.*', url)
-            response = requests.request("GET", match.group(0), headers=Service.basic_headers, timeout=PTConfig.MOMO_REQUEST_TIMEOUT)
+            response = requests.request("GET", match.group(0), headers={'user-agent': str(user_agent.random)},
+                                        timeout=PTConfig.MOMO_REQUEST_TIMEOUT)
             url = response.url
         r = urlparse(url)
         d = parse_qs(r.query)
@@ -90,6 +93,8 @@ def auto_add_good(update, context):
         add_user_good_info(user_good_info)
         msg = '成功新增\n商品名稱:%s\n價格:%s\n狀態:%s' % (good_info.name, good_info.price, stock_state_string)
         context.bot.send_message(chat_id=update.effective_chat.id, text=msg)
+    except PTError.GoodNotExist:
+        context.bot.send_message(chat_id=update.effective_chat.id, text='商品目前無展售或是網頁不存在')
     except PTError.CrawlerParseError:
         context.bot.send_message(chat_id=update.effective_chat.id, text='商品頁面解析失敗')
     except PTError.ExceedLimitedSizeError:
@@ -114,6 +119,8 @@ def my(update, context):
         stock_state_string = '可購買'
         if my_good[2] == GoodInfo.STOCK_STATE_OUT_OF_STOCK:
             stock_state_string = '缺貨中，請等待上架後通知'
+        elif my_good[2] == GoodInfo.STOCK_STATE_NOT_EXIST:
+            stock_state_string = '商品目前無展售或是網頁不存在'
         my_good[2] = stock_state_string
         good_id = my_good[3]
         my_good[3] = Service.generate_momo_url_by_good_id(good_id)
