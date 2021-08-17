@@ -6,6 +6,7 @@ import uuid
 
 import requests
 from bs4 import BeautifulSoup
+from fake_useragent import UserAgent
 
 import Bot
 import DataSource
@@ -14,9 +15,7 @@ import PTError
 from Entity import GoodInfo
 
 good_url = PTConfig.momo_good_url()
-basic_headers = {
-    'User-Agent': PTConfig.USER_AGENT
-}
+user_agent = UserAgent(use_cache_server=False)
 logger = logging.getLogger('Service')
 momo_request_lock = threading.Lock()  # control the number of request
 pool = DataSource.get_pool()
@@ -88,7 +87,7 @@ def _get_good_info_from_momo(i_code=None, session=requests.Session()):
     try:
         logger.debug('_get_good_info_from_momo lock acquired')
         params = {'i_code': i_code}
-        response = session.request("GET", good_url, params=params, headers=basic_headers,
+        response = session.request("GET", good_url, params=params, headers={'user-agent': str(user_agent.random)},
                                    timeout=PTConfig.MOMO_REQUEST_TIMEOUT)
     except Exception as e:
         logger.debug('_get_good_info_from_momo lock released')
@@ -121,6 +120,8 @@ def get_good_info(good_id=None, session=requests.Session(), previous_good_info=N
 
     soup = BeautifulSoup(response, "lxml")
     try:
+        if soup.find('meta', property='og:title') is None:
+            raise PTError.GoodNotExist
         good_name = soup.find('meta', property='og:title')["content"]
         logger.info("good_name %s", good_name)
         price = _format_price(soup.find('meta', property='product:price:amount')["content"])
@@ -131,6 +132,9 @@ def get_good_info(good_id=None, session=requests.Session(), previous_good_info=N
         else:
             stock_state = GoodInfo.STOCK_STATE_OUT_OF_STOCK
         logger.info("stock_state %s", stock_state)
+    except PTError.GoodNotExist as e:
+        logger.warning('Good not exist. id:%s', good_id)
+        raise e
     except Exception as e:
         logger.error("Parse good_info and catch an exception. good_id:%s", good_id, exc_info=True)
         raise PTError.CrawlerParseError
@@ -143,10 +147,10 @@ def sync_price():
     for good_info in _find_all_good():
         try:
             good_id = good_info.good_id
-            is_exist = _remove_redundant_good_info(good_info.good_id)
-            if not is_exist:
-                logger.debug('%s not exist', good_id)
-                continue
+            # is_exist = _remove_redundant_good_info(good_info.good_id)
+            # if not is_exist:
+            #     logger.debug('%s not exist', good_id)
+            #     continue
             new_good_info = get_good_info(good_id=good_id, session=session, previous_good_info=good_info)
             add_good_info(new_good_info)
             cheaper_records = {}
@@ -170,6 +174,8 @@ def sync_price():
                 msg = '%s\n目前已經可購買！！！\n\n%s'
                 for follow_good_chat_id in follow_good_chat_ids:
                     Bot.send(msg % (new_good_info.name, good_page_url), str(follow_good_chat_id[0]))
+        except PTError.GoodNotExist as e:
+            update_good_stock_state(good_id, GoodInfo.STOCK_STATE_NOT_EXIST)
         except Exception as e:
             logger.error(e, exc_info=True)
     logger.info('Price syncer finished')
@@ -288,3 +294,13 @@ def clear(user_id):
 
 def generate_momo_url_by_good_id(good_id):
     return (PTConfig.MOMO_URL + PTConfig.MOMO_GOOD_URI + "?i_code=%s") % str(good_id)
+
+
+def update_good_stock_state(good_id, state):
+    conn = pool.getconn()
+    with conn:
+        with conn.cursor() as cursor:
+            sql = '''update good_info set stock_state=%s where id=%s;
+                '''
+            cursor.execute(sql, (state, good_id))
+    pool.putconn(conn, close=True)

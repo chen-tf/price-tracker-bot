@@ -20,5 +20,10 @@ class NotValidMomoURL(Error):
 
 
 class UnknownRequestError(Error):
-    """Raised when request unknown erorr"""
+    """Raised when request unknown error"""
+    pass
+
+
+class GoodNotExist(Error):
+    """Raised when good not exist."""
     pass

@@ -16,6 +16,8 @@ class UserGoodInfo:
 class GoodInfo:
     STOCK_STATE_OUT_OF_STOCK = 0
     STOCK_STATE_IN_STOCK = 1
+    STOCK_STATE_NOT_EXIST = 2
+
     good_id: str
     price: int
     name: str
