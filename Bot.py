@@ -3,6 +3,7 @@ import re
 
 import requests
 import telegram
+from telegram import ChatAction
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
 import PTConfig
@@ -133,4 +134,18 @@ def clear(update, context):
 
 
 def send(msg, chat_id):
-    bot.sendMessage(chat_id=chat_id, text=msg)
+    if is_blocked_by_user(chat_id):
+        return
+    try:
+        bot.sendMessage(chat_id=chat_id, text=msg)
+    except:
+        logger.error('Send message and catch the exception.', exc_info=True)
+
+
+def is_blocked_by_user(chat_id):
+    try:
+        bot.send_chat_action(chat_id=str(chat_id), action=ChatAction.TYPING)
+    except telegram.error.Unauthorized as e:
+        if e.message == 'Forbidden: bot was blocked by the user':
+            return True
+    return False

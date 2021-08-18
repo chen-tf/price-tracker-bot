@@ -20,8 +20,8 @@ if __name__ == '__main__':
 
 
 def my_job():
-    Service.sync_price()
     schedule.every(PTConfig.PERIOD_HOUR).hours.do(Service.sync_price)
+    schedule.every(PTConfig.PERIOD_HOUR).hours.do(Service.disable_not_active_user_sub_good)
     while True:
         schedule.run_pending()
         time.sleep(2)
