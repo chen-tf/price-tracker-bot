@@ -4,24 +4,24 @@ import time
 
 import schedule
 
-import App
-import Bot
-import PTConfig
-import Service
+import app
+import pt_bot
+import pt_config
+import pt_service
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=PTConfig.LOGGING_LEVEL, force=True)
+                    level=pt_config.LOGGING_LEVEL, force=True)
 logger = logging.getLogger('App')
 if __name__ == '__main__':
-    t = threading.Thread(target=App.my_job)
+    t = threading.Thread(target=app.my_job)
     t.start()
     logger.debug('Momo price tracker bot started.')
-    Bot.run()
+    pt_bot.run()
 
 
 def my_job():
-    schedule.every(PTConfig.PERIOD_HOUR).hours.do(Service.sync_price)
-    schedule.every(PTConfig.PERIOD_HOUR).hours.do(Service.disable_not_active_user_sub_good)
+    schedule.every(pt_config.PERIOD_HOUR).hours.do(pt_service.sync_price)
+    schedule.every(pt_config.PERIOD_HOUR).hours.do(pt_service.disable_not_active_user_sub_good)
     while True:
         schedule.run_pending()
         time.sleep(2)

@@ -7,16 +7,16 @@ import uuid
 import requests
 from bs4 import BeautifulSoup
 
-import Bot
-import DataSource
-import PTConfig
-import PTError
-from Entity import GoodInfo
+import pt_bot
+import pt_datasource
+import pt_config
+import pt_error
+from pt_entity import GoodInfo
 
-good_url = PTConfig.momo_good_url()
+good_url = pt_config.momo_good_url()
 logger = logging.getLogger('Service')
 momo_request_lock = threading.Lock()  # control the number of request
-pool = DataSource.get_pool()
+pool = pt_datasource.get_pool()
 
 
 def upsert_user(user_id, chat_id):
@@ -52,8 +52,8 @@ def add_user_good_info(user_good_info):
             cursor.execute('select count(1) from user_sub_good where user_id=%s and state = 1',
                            (str(user_good_info.user_id),))
             total_size = cursor.fetchone()[0]
-            if total_size >= PTConfig.USER_SUB_GOOD_LIMITED:
-                raise PTError.ExceedLimitedSizeError
+            if total_size >= pt_config.USER_SUB_GOOD_LIMITED:
+                raise pt_error.ExceedLimitedSizeError
             else:
                 sql = '''INSERT INTO public.user_sub_good
                 (id, user_id, good_id, price, is_notified, state)
@@ -82,16 +82,16 @@ def add_good_info(good_info):
 
 def _get_good_info_from_momo(i_code=None, session=requests.Session()):
     logger.debug('_get_good_info_from_momo lock waiting')
-    momo_request_lock.acquire(timeout=PTConfig.MOMO_REQUEST_TIMEOUT+10)
+    momo_request_lock.acquire(timeout=pt_config.MOMO_REQUEST_TIMEOUT + 10)
     try:
         logger.debug('_get_good_info_from_momo lock acquired')
         params = {'i_code': i_code}
-        response = session.request("GET", good_url, params=params, headers={'user-agent': PTConfig.USER_AGENT},
-                                   timeout=PTConfig.MOMO_REQUEST_TIMEOUT)
+        response = session.request("GET", good_url, params=params, headers={'user-agent': pt_config.USER_AGENT},
+                                   timeout=pt_config.MOMO_REQUEST_TIMEOUT)
     except Exception as e:
         logger.debug('_get_good_info_from_momo lock released')
         logger.error("Get good_info and catch an exception.", exc_info=True)
-        raise PTError.UnknownRequestError
+        raise pt_error.UnknownRequestError
     finally:
         momo_request_lock.release()
         logger.debug('_get_good_info_from_momo lock released')
@@ -120,7 +120,7 @@ def get_good_info(good_id=None, session=requests.Session(), previous_good_info=N
     soup = BeautifulSoup(response, "lxml")
     try:
         if soup.find('meta', property='og:title') is None:
-            raise PTError.GoodNotExist
+            raise pt_error.GoodNotExist
         good_name = soup.find('meta', property='og:title')["content"]
         logger.info("good_name %s", good_name)
         price = _format_price(soup.find('meta', property='product:price:amount')["content"])
@@ -131,12 +131,12 @@ def get_good_info(good_id=None, session=requests.Session(), previous_good_info=N
         else:
             stock_state = GoodInfo.STOCK_STATE_OUT_OF_STOCK
         logger.info("stock_state %s", stock_state)
-    except PTError.GoodNotExist as e:
+    except pt_error.GoodNotExist as e:
         logger.warning('Good not exist. id:%s', good_id)
         raise e
     except Exception as e:
         logger.error("Parse good_info and catch an exception. good_id:%s", good_id, exc_info=True)
-        raise PTError.CrawlerParseError
+        raise pt_error.CrawlerParseError
     return GoodInfo(good_id=good_id, name=good_name, price=price, checksum=response_checksum, stock_state=stock_state)
 
 
@@ -162,7 +162,7 @@ def sync_price():
             for cheaper_record in cheaper_records:
                 chat_id = cheaper_record[3]
                 original_price = cheaper_record[2]
-                Bot.send(msg % (new_good_info.name, new_good_info.price, original_price, good_page_url), chat_id)
+                pt_bot.send(msg % (new_good_info.name, new_good_info.price, original_price, good_page_url), chat_id)
                 success_notified.append(cheaper_record[0])
             _mark_is_notified_by_id(success_notified)
 
@@ -172,8 +172,8 @@ def sync_price():
                 follow_good_chat_ids = _find_user_by_good_id(good_id)
                 msg = '%s\n目前已經可購買！！！\n\n%s'
                 for follow_good_chat_id in follow_good_chat_ids:
-                    Bot.send(msg % (new_good_info.name, good_page_url), str(follow_good_chat_id[0]))
-        except PTError.GoodNotExist as e:
+                    pt_bot.send(msg % (new_good_info.name, good_page_url), str(follow_good_chat_id[0]))
+        except pt_error.GoodNotExist as e:
             update_good_stock_state(good_id, GoodInfo.STOCK_STATE_NOT_EXIST)
         except Exception as e:
             logger.error(e, exc_info=True)
@@ -294,7 +294,7 @@ def clear(user_id):
 
 
 def generate_momo_url_by_good_id(good_id):
-    return (PTConfig.MOMO_URL + PTConfig.MOMO_GOOD_URI + "?i_code=%s") % str(good_id)
+    return (pt_config.MOMO_URL + pt_config.MOMO_GOOD_URI + "?i_code=%s") % str(good_id)
 
 
 def update_good_stock_state(good_id, state):
@@ -321,7 +321,7 @@ def disable_not_active_user_sub_good():
     if not all_results:
         return
 
-    not_active_user_ids = tuple(str(result[1]) for result in all_results if Bot.is_blocked_by_user(str(result[0])))
+    not_active_user_ids = tuple(str(result[1]) for result in all_results if pt_bot.is_blocked_by_user(str(result[0])))
 
     if not not_active_user_ids:
         return
