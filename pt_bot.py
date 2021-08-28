@@ -129,8 +129,16 @@ def my(update, context):
 
 def clear(update, context):
     user_id = str(update.message.from_user.id)
-    pt_service.clear(user_id)
-    context.bot.send_message(chat_id=update.effective_chat.id, text='已清空追蹤清單')
+    good_name = None
+    if len(context.args) > 1:
+        good_name = context.args[1]
+    removed_goods_name = pt_service.clear(user_id, good_name)
+    response_msg = '無可清空的追蹤商品'
+    if len(removed_goods_name) > 0:
+        response_msg = '已清空以下物品\n'
+        for good_name in removed_goods_name:
+            response_msg += '====\n%s\n====\n' % good_name
+    context.bot.send_message(chat_id=update.effective_chat.id, text=response_msg)
 
 
 def send(msg, chat_id):
