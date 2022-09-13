@@ -1,6 +1,11 @@
 ## 簡介
 price-tracker-bot is a telegram bot that can trace the price on [momoshop](https://www.momoshop.com.tw "momoshop").
 
+#### 2022.09.13
+[平臺即服務Heroku將在今年終止免費服務](https://www.ithome.com.tw/news/152729)
+- 新增 fly.io 平台部署教學
+- 新增 Supabase Database 申請
+
 ---
 
 ## 功能
@@ -52,7 +57,25 @@ Telegram bot search [@momo_price_tracker_bot](https://t.me/momo_price_tracker_bo
 - webhook
 如果要在local 測試 webhook，可使用 [ngrok](https://ngrok.com/ "ngrok")
 
-### heroku
+### fly.io
+- [Run a Python App](https://fly.io/docs/languages-and-frameworks/python/)
+- [Install Flyctl and Login](https://fly.io/docs/languages-and-frameworks/python/#install-flyctl-and-login)
+- [Inside fly toml](https://fly.io/docs/languages-and-frameworks/python/#inside-fly-toml)
+- Procfile 一樣使用 `web: python3 app.py`
+- fly postgres
+目前因為一些原因建議可以使用 Supabase Postgres
+
+This is indeed a timeout due to the fact that Fly.io put HAproxy in front of the PostgreSQL instance, and the HAproxy has a 30m timeout. (This was confirmed via email support with Fly.io)
+
+This means you will either want to a make sure your PostgreSQL adapter can deal with (or automatically) reconnects, or fire some kind of idle timer that runs a query at least once every 30 min, to keep the connection alive.
+
+環境變數可以設定至 fly.toml 中
+
+### Supabase (Free Postgres Online)
+- https://supabase.com/
+- [相關教學](https://flaviocopes.com/postgresql-supabase-setup/)
+
+### heroku (免費方案即將關閉，建議遷移至flyio)
 - [heroku application](https://devcenter.heroku.com/articles/creating-apps)
 - [Heroku Postgres](https://devcenter.heroku.com/articles/heroku-postgresql)
 - [Heroku config](https://devcenter.heroku.com/articles/config-vars) 設定heoku上環境變數
