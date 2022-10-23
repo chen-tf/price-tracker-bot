@@ -30,7 +30,7 @@ def upsert_user(user_id, chat_id):
             SET chat_id = EXCLUDED.chat_id, state = EXCLUDED.state;
             '''
             cursor.execute(sql, (user_id, chat_id))
-    pool.putconn(conn, close=True)
+    pool.putconn(conn)
 
 
 def count_user_good_info_sum(user_id):
@@ -40,7 +40,7 @@ def count_user_good_info_sum(user_id):
         with conn.cursor() as cursor:
             cursor.execute('select count(1) from user_sub_good where user_id=%s and state = 1', (str(user_id),))
             total_size = cursor.fetchone()[0]
-    pool.putconn(conn, close=True)
+    pool.putconn(conn)
     return total_size
 
 
@@ -63,21 +63,20 @@ def add_user_good_info(user_good_info):
                 '''
                 cursor.execute(sql, (uuid.uuid4(), user_good_info.user_id, user_good_info.good_id,
                                      user_good_info.original_price))
-    pool.putconn(conn, close=True)
+    pool.putconn(conn)
 
 
 def add_good_info(good_info):
     conn = pool.getconn()
     with conn:
         with conn.cursor() as cursor:
-            sql = '''INSERT INTO good_info (id, name, price, checksum,stock_state,state) VALUES(%s, %s, %s, %s, %s, 1) 
+            sql = '''INSERT INTO good_info (id, name, price, stock_state,state) VALUES(%s, %s, %s, %s, 1) 
             ON CONFLICT(id) DO UPDATE
-            SET name = EXCLUDED.name, price = EXCLUDED.price, checksum = EXCLUDED.checksum
-            , stock_state = EXCLUDED.stock_state;
+            SET name = EXCLUDED.name, price = EXCLUDED.price, stock_state = EXCLUDED.stock_state;
             '''
             cursor.execute(sql, (
-                good_info.good_id, good_info.name, good_info.price, good_info.checksum, good_info.stock_state))
-    pool.putconn(conn, close=True)
+                good_info.good_id, good_info.name, good_info.price, good_info.stock_state))
+    pool.putconn(conn)
 
 
 def _get_good_info_from_momo(i_code=None, session=requests.Session()):
@@ -102,20 +101,9 @@ def _format_price(price):
     return int(str(price).strip().replace(',', ''))
 
 
-def _get_checksum(content):
-    md5_hash = hashlib.md5()
-    md5_hash.update(content.encode('utf-8'))
-    return md5_hash.hexdigest()
-
-
-def get_good_info(good_id=None, session=requests.Session(), previous_good_info=None):
+def get_good_info(good_id=None, session=requests.Session()):
     logger.info("good_id %s", good_id)
     response = _get_good_info_from_momo(i_code=good_id, session=session)
-    response_checksum = _get_checksum(response)
-
-    # Save the parse time if the checksum value is equal.
-    if previous_good_info is not None and response_checksum == previous_good_info.checksum:
-        return previous_good_info
 
     soup = BeautifulSoup(response, "lxml")
     try:
@@ -137,12 +125,11 @@ def get_good_info(good_id=None, session=requests.Session(), previous_good_info=N
     except Exception as e:
         logger.error("Parse good_info and catch an exception. good_id:%s", good_id, exc_info=True)
         raise pt_error.CrawlerParseError
-    return GoodInfo(good_id=good_id, name=good_name, price=price, checksum=response_checksum, stock_state=stock_state)
+    return GoodInfo(good_id=good_id, name=good_name, price=price, stock_state=stock_state)
 
 
 def sync_price():
     logger.info('Price syncer started')
-    session = requests.Session()
     for good_info in _find_all_good():
         try:
             good_id = good_info.good_id
@@ -150,9 +137,9 @@ def sync_price():
             if not is_exist:
                 logger.debug('%s not exist', good_id)
                 continue
-            new_good_info = get_good_info(good_id=good_id, session=session, previous_good_info=good_info)
+            new_good_info = get_good_info(good_id=good_id)
             add_good_info(new_good_info)
-            cheaper_records = {}
+            cheaper_records = []
             if new_good_info.price != good_info.price:
                 _reset_higher_user_sub(good_id)
                 cheaper_records = _find_user_sub_goods_price_higher(new_good_info.price, good_id)
@@ -185,15 +172,15 @@ def _find_all_good():
     goods = []
     with conn:
         with conn.cursor() as cursor:
-            sql = '''select id,price,name,checksum,COALESCE(stock_state,1) from good_info
+            sql = '''select id,price,name,COALESCE(stock_state,1) from good_info
                 where state = 1;
                 '''
             cursor.execute(sql)
             all_results = cursor.fetchall()
-    pool.putconn(conn, close=True)
+    pool.putconn(conn)
     for result in all_results:
         goods.append(
-            GoodInfo(good_id=result[0], price=result[1], name=result[2], checksum=result[3], stock_state=result[4]))
+            GoodInfo(good_id=result[0], price=result[1], name=result[2], stock_state=result[3]))
     return goods
 
 
@@ -211,7 +198,7 @@ def _disable_redundant_good_info(good_id):
                 WHERE id=%s;
                 '''
                 cursor.execute(sql, (good_id,))
-    pool.putconn(conn, close=True)
+    pool.putconn(conn)
     return is_exist
 
 
@@ -226,7 +213,7 @@ def _find_user_sub_goods_price_higher(new_price, good_id):
             '''
             cursor.execute(sql, (good_id, new_price))
             all_results = cursor.fetchall()
-    pool.putconn(conn, close=True)
+    pool.putconn(conn)
     return all_results
 
 
@@ -241,7 +228,7 @@ def _find_user_by_good_id(good_id):
             '''
             cursor.execute(sql, (good_id,))
             all_results = cursor.fetchall()
-    pool.putconn(conn, close=True)
+    pool.putconn(conn)
     return all_results
 
 
@@ -252,7 +239,7 @@ def _reset_higher_user_sub(good_id):
             sql = '''update user_sub_good set is_notified=false where good_id=%s;
                 '''
             cursor.execute(sql, (good_id,))
-    pool.putconn(conn, close=True)
+    pool.putconn(conn)
 
 
 def _mark_is_notified_by_id(ids):
@@ -264,7 +251,7 @@ def _mark_is_notified_by_id(ids):
             sql = '''update user_sub_good set is_notified=true where id in (%s);
                 '''
             cursor.execute(sql, ids)
-    pool.putconn(conn, close=True)
+    pool.putconn(conn)
 
 
 def find_user_sub_goods(user_id):
@@ -277,7 +264,7 @@ def find_user_sub_goods(user_id):
                 '''
             cursor.execute(sql, (user_id,))
             all_results = cursor.fetchall()
-    pool.putconn(conn, close=True)
+    pool.putconn(conn)
     return all_results
 
 
@@ -303,7 +290,7 @@ def clear(user_id, good_name):
             WHERE id in %s;
             '''
             cursor.execute(sql, (user_good_ids,))
-    pool.putconn(conn, close=True)
+    pool.putconn(conn)
     return list(str(result[1]) for result in all_results if str(result[0]) in user_good_ids)
 
 
@@ -318,7 +305,7 @@ def update_good_stock_state(good_id, state):
             sql = '''update good_info set stock_state=%s where id=%s;
                 '''
             cursor.execute(sql, (state, good_id))
-    pool.putconn(conn, close=True)
+    pool.putconn(conn)
 
 
 def disable_not_active_user_sub_good():
@@ -330,7 +317,7 @@ def disable_not_active_user_sub_good():
             group by (u.id, u.chat_id);'''
             cursor.execute(sql)
             all_results = cursor.fetchall()
-    pool.putconn(conn, close=True)
+    pool.putconn(conn)
 
     if not all_results:
         return
@@ -353,4 +340,4 @@ def disable_not_active_user_sub_good():
             cursor.execute(update_user_sub_good_sql, (not_active_user_ids,))
             cursor.execute(update_user_sql, (not_active_user_ids,))
 
-    pool.putconn(conn, close=True)
+    pool.putconn(conn)

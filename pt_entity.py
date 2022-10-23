@@ -26,15 +26,13 @@ class GoodInfo:
     good_id: str
     price: int
     name: str
-    checksum: str
     stock_state: int
     state: int
 
-    def __init__(self, good_id: str, price: int, name: str, checksum: str, stock_state: int) -> None:
+    def __init__(self, good_id: str, price: int, name: str, stock_state: int) -> None:
         self.good_id = good_id
         self.price = price
         self.name = name
-        self.checksum = checksum
         if stock_state is None:
             self.stock_state = 1
         else:
