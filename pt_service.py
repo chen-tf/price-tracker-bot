@@ -250,7 +250,7 @@ def _mark_is_notified_by_id(ids):
         with conn.cursor() as cursor:
             sql = '''update user_sub_good set is_notified=true where id in %s;
                 '''
-            cursor.execute(sql, (ids,))
+            cursor.execute(sql, (tuple(ids),))
     pool.putconn(conn)
 
 
