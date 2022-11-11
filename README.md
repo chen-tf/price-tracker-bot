@@ -1,6 +1,10 @@
 ## 簡介
 price-tracker-bot is a telegram bot that can trace the price on [momoshop](https://www.momoshop.com.tw "momoshop").
 
+#### 2022.11.12
+一個夜晚突然無聊，想到如果我在 telegram bot 上面做 LINE Notify 的綁定，是不是會很有趣呢
+- 新增 LINE 通知服務綁定 (目前 telegram bot 只能先支援 polling 的使用方式，為了要同時使用 flask web)
+
 #### 2022.09.13
 [平臺即服務Heroku將在今年終止免費服務](https://www.ithome.com.tw/news/152729)
 - 新增 fly.io 平台部署教學
@@ -9,7 +13,8 @@ price-tracker-bot is a telegram bot that can trace the price on [momoshop](https
 ---
 
 ## 功能
-
+- LINE 通知服務
+![LINE 通知服務](https://i.imgur.com/DF9lOUR.jpg)
 - 降價通知
 ![降價通知](https://i.imgur.com/CSLhRGW.png)
 - 上架通知
