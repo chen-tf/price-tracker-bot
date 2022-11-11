@@ -9,6 +9,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Conve
 import pt_config
 import pt_error
 import pt_service
+from lotify_client import get_lotify_client
 from pt_entity import UserGoodInfo, GoodInfo
 from pt_service import get_good_info, add_good_info, add_user_good_info, upsert_user
 
@@ -16,9 +17,11 @@ updater = Updater(token=pt_config.BOT_TOKEN, use_context=True)
 dispatcher = updater.dispatcher
 bot = telegram.Bot(token=pt_config.BOT_TOKEN)
 logger = logging.getLogger('Bot')
+lotify_client = get_lotify_client()
 
 UNTRACK = range(1)
 ADD_GOOD = range(1)
+
 
 def run():
     bot_dispatcher = None
@@ -40,6 +43,9 @@ def run():
     # add handlers
     start_handler = CommandHandler('start', start)
     bot_dispatcher.add_handler(start_handler)
+
+    line_handler = CommandHandler('line', line)
+    bot_dispatcher.add_handler(line_handler)
 
     add_good_conv_handler = ConversationHandler(
         entry_points=[CommandHandler('add', add)],
@@ -77,6 +83,12 @@ def start(update, context):
     user_id = update.message.from_user.id
     upsert_user(user_id, chat_id)
     msg = '''/my 顯示追蹤清單\n/clearall 清空全部追蹤清單\n/clear 刪除指定追蹤商品\n/add 後貼上momo商品連結可加入追蹤清單\n或是可以直接使用指令選單方便操作'''
+    context.bot.send_message(chat_id=update.effective_chat.id, text=msg)
+
+
+def line(update, context):
+    auth_url = lotify_client.get_auth_link(state=update.message.from_user.id)
+    msg = f'你專屬的 LINE 通知綁定連結\n{auth_url}'
     context.bot.send_message(chat_id=update.effective_chat.id, text=msg)
 
 
@@ -123,7 +135,8 @@ def add_good(update, context):
     except pt_error.CrawlerParseError:
         context.bot.send_message(chat_id=update.effective_chat.id, text='商品頁面解析失敗')
     except pt_error.ExceedLimitedSizeError:
-        context.bot.send_message(chat_id=update.effective_chat.id, text='追蹤物品已達%s件' % pt_config.USER_SUB_GOOD_LIMITED)
+        context.bot.send_message(chat_id=update.effective_chat.id,
+                                 text='追蹤物品已達%s件' % pt_config.USER_SUB_GOOD_LIMITED)
     except pt_error.NotValidMomoURL:
         context.bot.send_message(chat_id=update.effective_chat.id, text='無效momo商品連結')
     except Exception as e:

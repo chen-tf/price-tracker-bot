@@ -1,0 +1,1 @@
+ALTER TABLE public."user" ADD line_notify_token varchar NULL;

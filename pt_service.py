@@ -1,5 +1,4 @@
 # coding: utf-8
-import hashlib
 import logging
 import threading
 import uuid
@@ -11,12 +10,14 @@ import pt_bot
 import pt_config
 import pt_datasource
 import pt_error
+from lotify_client import get_lotify_client
 from pt_entity import GoodInfo
 
 good_url = pt_config.momo_good_url()
 logger = logging.getLogger('Service')
 momo_request_lock = threading.Lock()  # control the number of request
 pool = pt_datasource.get_pool()
+lotify_client = get_lotify_client()
 
 
 def upsert_user(user_id, chat_id):
@@ -149,7 +150,14 @@ def sync_price():
             for cheaper_record in cheaper_records:
                 chat_id = cheaper_record[3]
                 original_price = cheaper_record[2]
-                pt_bot.send(msg % (new_good_info.name, new_good_info.price, original_price, good_page_url), chat_id)
+                format_msg = msg % (new_good_info.name, new_good_info.price, original_price, good_page_url)
+                pt_bot.send(format_msg, chat_id)
+                line_notify_token = cheaper_record[4]
+                if line_notify_token:
+                    try:
+                        lotify_client.send_message(line_notify_token, format_msg)
+                    except Exception as e:
+                        logger.error(e, exc_info=True)
                 success_notified.append(cheaper_record[0])
             _mark_is_notified_by_id(success_notified)
 
@@ -207,7 +215,7 @@ def _find_user_sub_goods_price_higher(new_price, good_id):
     all_results = []
     with conn:
         with conn.cursor() as cursor:
-            sql = '''select usg.id,usg.user_id, usg.price, u.chat_id from user_sub_good usg
+            sql = '''select usg.id,usg.user_id, usg.price, u.chat_id, u.line_notify_token from user_sub_good usg
             join "user" u on usg.user_id = u.id and u.state = 1
             where usg.good_id = %s and usg.price > %s and usg.is_notified = false;
             '''
@@ -340,4 +348,14 @@ def disable_not_active_user_sub_good():
             cursor.execute(update_user_sub_good_sql, (not_active_user_ids,))
             cursor.execute(update_user_sql, (not_active_user_ids,))
 
+    pool.putconn(conn)
+
+
+def update_user_line_token(user_id, line_notify_token):
+    conn = pool.getconn()
+    with conn:
+        with conn.cursor() as cursor:
+            sql = '''update "user" set line_notify_token=%s where id=%s;
+                    '''
+            cursor.execute(sql, (line_notify_token, user_id))
     pool.putconn(conn)
