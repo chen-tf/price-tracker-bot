@@ -8,10 +8,10 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Conve
 
 import pt_config
 import pt_error
+import pt_momo
 import pt_service
 from lotify_client import get_lotify_client
 from pt_entity import UserGoodInfo, GoodInfo
-from pt_service import get_good_info, add_good_info, add_user_good_info, upsert_user
 
 updater = Updater(token=pt_config.BOT_TOKEN, use_context=True)
 dispatcher = updater.dispatcher
@@ -24,7 +24,6 @@ ADD_GOOD = range(1)
 
 
 def run():
-    bot_dispatcher = None
     if pt_config.TELEGRAM_BOT_MODE == 'polling':
         bot_updater = Updater(token=pt_config.BOT_TOKEN, use_context=True)
         bot_dispatcher = bot_updater.dispatcher
@@ -79,22 +78,28 @@ def run():
 
 
 def start(update, context):
-    chat_id = update.message.chat_id
-    user_id = update.message.from_user.id
-    upsert_user(user_id, chat_id)
+    user_reg(update)
     msg = '''/my 顯示追蹤清單\n/clearall 清空全部追蹤清單\n/clear 刪除指定追蹤商品\n/add 後貼上momo商品連結可加入追蹤清單\n或是可以直接使用指令選單方便操作'''
     context.bot.send_message(chat_id=update.effective_chat.id, text=msg)
 
 
 def line(update, context):
+    user_reg(update)
     auth_url = lotify_client.get_auth_link(state=update.message.from_user.id)
     msg = f'你專屬的 LINE 通知綁定連結\n{auth_url}'
     context.bot.send_message(chat_id=update.effective_chat.id, text=msg)
 
 
 def add(update, context):
+    user_reg(update)
     update.message.reply_text('貼上momo商品連結加入收藏\n輸入 /cancel 後放棄動作')
     return ADD_GOOD
+
+
+def user_reg(update):
+    chat_id = update.message.chat_id
+    user_id = update.message.from_user.id
+    pt_service.upsert_user(user_id, chat_id)
 
 
 def add_good(update, context):
@@ -120,14 +125,14 @@ def add_good(update, context):
             raise pt_error.ExceedLimitedSizeError
 
         good_id = str(d['i_code'][0])
-        good_info = get_good_info(good_id=good_id)
-        add_good_info(good_info)
+        good_info = pt_service.get_good_info(good_id=good_id)
+        pt_service.add_good_info(good_info)
         user_good_info = UserGoodInfo(user_id=user_id, chat_id=chat_id, good_id=good_id, original_price=good_info.price,
                                       is_notified=False)
         stock_state_string = '可購買'
         if good_info.stock_state == GoodInfo.STOCK_STATE_OUT_OF_STOCK:
             stock_state_string = '缺貨中，請等待上架後通知'
-        add_user_good_info(user_good_info)
+        pt_service.add_user_good_info(user_good_info)
         msg = '成功新增\n商品名稱:%s\n價格:%s\n狀態:%s' % (good_info.name, good_info.price, stock_state_string)
         context.bot.send_message(chat_id=update.effective_chat.id, text=msg)
     except pt_error.GoodNotExist:
@@ -139,7 +144,7 @@ def add_good(update, context):
                                  text='追蹤物品已達%s件' % pt_config.USER_SUB_GOOD_LIMITED)
     except pt_error.NotValidMomoURL:
         context.bot.send_message(chat_id=update.effective_chat.id, text='無效momo商品連結')
-    except Exception as e:
+    except Exception:
         logger.error("Catch an exception.", exc_info=True)
         context.bot.send_message(chat_id=update.effective_chat.id, text='Something wrong...try again.')
     finally:
@@ -163,7 +168,7 @@ def my(update, context):
             stock_state_string = '商品目前無展售或是網頁不存在'
         my_good[2] = stock_state_string
         good_id = my_good[3]
-        my_good[3] = pt_service.generate_momo_url_by_good_id(good_id)
+        my_good[3] = pt_momo.generate_momo_url_by_good_id(good_id)
         msgs = msgs + (msg % tuple(my_good))
     context.bot.send_message(chat_id=update.effective_chat.id, text=msgs)
 
