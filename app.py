@@ -5,7 +5,6 @@ import time
 import schedule
 
 import app
-import notifier_web
 import pt_bot
 import pt_config
 import pt_service
@@ -15,7 +14,6 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger('App')
 if __name__ == '__main__':
     threading.Thread(target=app.my_job).start()
-    threading.Thread(target=notifier_web.start).start()
     logger.debug('Momo price tracker bot started.')
     pt_bot.run()
 
