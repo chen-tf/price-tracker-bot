@@ -5,12 +5,13 @@ price-tracker-bot is a telegram bot that can trace the price on [momoshop](https
 一個夜晚突然無聊，想到如果我在 telegram bot 上面做 LINE Notify 的綁定，是不是會很有趣呢
 - 新增 LINE 通知服務綁定 (目前 telegram bot 只能先支援 polling 的使用方式，為了要同時使用 flask web)
 
-[outage] 
-root case：同時間超過一個以上相同 telegram bot 使用 polling mode。
-fix：分別 deploy (telegram bot, flask web)
-impact：約莫早上五點至早上九點的降價服務倒站，既有資料不受影響，新資料都沒有建立成功。
-後續動作：主動發送 telegram message 說明現況，請用戶再嘗試操作。
-反思：恩...對，就是上面那個設定造成的，當初只是想要省錢不要開第二台機器，所以把對外的 port 讓給 LINE Notify Webhook，telegram bot 使用的是 polling mode，在後面部署階段的時候因為上面root case所述，所以造成期間內的telegram bot回覆異常。
+outage
+
+- root case：同時間超過一個以上相同 telegram bot 使用 polling mode。
+- fix：分別 deploy (telegram bot, flask web)
+- impact：約莫早上五點至早上九點的降價服務倒站，既有資料不受影響，新資料都沒有建立成功。
+- 後續動作：主動發送 telegram message 說明現況，請用戶再嘗試操作。
+- 反思：恩...對，就是上面那個設定造成的，當初只是想要省錢不要開第二台機器，所以把對外的 port 讓給 LINE Notify Webhook，telegram bot 使用的是 polling mode，在後面部署階段的時候因為上面root case所述，所以造成期間內的telegram bot回覆異常。
 
 #### 2022.09.13
 [平臺即服務Heroku將在今年終止免費服務](https://www.ithome.com.tw/news/152729)
