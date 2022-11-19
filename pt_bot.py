@@ -226,3 +226,7 @@ def is_blocked_by_user(chat_id):
     except Exception:
         logger.error('Failed to check block user', exc_info=True)
     return False
+
+
+if __name__ == '__main__':
+    run()
