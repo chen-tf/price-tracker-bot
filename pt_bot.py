@@ -40,27 +40,27 @@ def run():
         bot_dispatcher = bot_updater.dispatcher
 
     # add handlers
-    start_handler = CommandHandler('start', start)
+    start_handler = CommandHandler('start', start, run_async=True)
     bot_dispatcher.add_handler(start_handler)
 
-    line_handler = CommandHandler('line', line)
+    line_handler = CommandHandler('line', line, run_async=True)
     bot_dispatcher.add_handler(line_handler)
 
     add_good_conv_handler = ConversationHandler(
         entry_points=[CommandHandler('add', add)],
         fallbacks=[CommandHandler('cancel', cancel)],
-
         states={
             UNTRACK: [MessageHandler(Filters.text & (~Filters.command), add_good)],
         },
+        run_async=True
     )
 
     bot_dispatcher.add_handler(add_good_conv_handler)
 
-    my_good_handler = CommandHandler('my', my)
+    my_good_handler = CommandHandler('my', my, run_async=True)
     bot_dispatcher.add_handler(my_good_handler)
 
-    clear_all_my_good_handler = CommandHandler('clearall', clearall)
+    clear_all_my_good_handler = CommandHandler('clearall', clearall, run_async=True)
     bot_dispatcher.add_handler(clear_all_my_good_handler)
 
     clear_conv_handler = ConversationHandler(
@@ -70,6 +70,7 @@ def run():
         states={
             UNTRACK: [MessageHandler(Filters.text & (~Filters.command), untrack)],
         },
+        run_async=True
     )
 
     bot_dispatcher.add_handler(clear_conv_handler)
