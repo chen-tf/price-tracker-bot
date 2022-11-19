@@ -4,16 +4,16 @@ import time
 
 import schedule
 
-import app
 import pt_bot
 import pt_config
+import pt_scheduler
 import pt_service
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=pt_config.LOGGING_LEVEL, force=True)
 logger = logging.getLogger('App')
 if __name__ == '__main__':
-    threading.Thread(target=app.my_job).start()
+    threading.Thread(target=pt_scheduler.my_job).start()
     logger.debug('Momo price tracker bot started.')
     pt_bot.run()
 

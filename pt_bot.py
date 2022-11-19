@@ -222,4 +222,6 @@ def is_blocked_by_user(chat_id):
     except telegram.error.Unauthorized as e:
         if e.message == 'Forbidden: bot was blocked by the user':
             return True
+    except Exception:
+        logger.error('Failed to check block user', exc_info=True)
     return False

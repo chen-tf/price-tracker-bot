@@ -46,7 +46,7 @@ def _format_price(price):
 def _get_good_info_from_momo(i_code=None, session=requests.Session()):
     try:
         params = {'i_code': i_code}
-        session.mount('https://', HTTPAdapter(max_retries=Retry(total=5)))
+        session.mount('https://', HTTPAdapter(max_retries=Retry(total=3)))
         response = session.request("GET", pt_config.momo_good_url(), params=params,
                                    headers={'user-agent': pt_config.USER_AGENT},
                                    timeout=pt_config.MOMO_REQUEST_TIMEOUT)

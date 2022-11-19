@@ -1,5 +1,6 @@
 import logging
 import uuid
+from concurrent.futures import ProcessPoolExecutor
 
 import pt_config
 import pt_datasource
@@ -10,44 +11,36 @@ logger = logging.getLogger('Repository')
 pool = pt_datasource.get_pool()
 
 
-def update_user_line_token(user_id, line_notify_token):
+def _execute(sql: str, parameters: tuple, handler: callable = None):
     conn = pool.getconn()
     try:
-        with conn:
-            with conn.cursor() as cursor:
-                sql = '''update "user" set line_notify_token=%s where id=%s;
-                        '''
-                cursor.execute(sql, (line_notify_token, user_id))
+        with conn.cursor() as cursor:
+            cursor.execute(sql, parameters)
+            if handler:
+                return handler(cursor)
     finally:
         pool.putconn(conn)
+
+
+def update_user_line_token(user_id, line_notify_token):
+    sql = '''update "user" set line_notify_token=%s where id=%s;
+            '''
+    _execute(sql=sql, parameters=(line_notify_token, user_id))
 
 
 def upsert_user(user_id, chat_id):
-    conn = pool.getconn()
-    try:
-        with conn:
-            with conn.cursor() as cursor:
-                sql = '''INSERT INTO public."user"
-                (id, chat_id, state)
-                VALUES(%s, %s, 1)
-                ON CONFLICT(id) DO UPDATE
-                SET chat_id = EXCLUDED.chat_id, state = EXCLUDED.state;
-                '''
-                cursor.execute(sql, (user_id, chat_id))
-    finally:
-        pool.putconn(conn)
+    sql = '''INSERT INTO public."user"
+                    (id, chat_id, state)
+                    VALUES(%s, %s, 1)
+                    ON CONFLICT(id) DO UPDATE
+                    SET chat_id = EXCLUDED.chat_id, state = EXCLUDED.state;
+                    '''
+    _execute(sql=sql, parameters=(user_id, chat_id))
 
 
 def count_user_good_info_sum(user_id):
-    conn = pool.getconn()
-    try:
-        with conn:
-            with conn.cursor() as cursor:
-                cursor.execute('select count(1) from user_sub_good where user_id=%s and state = 1', (str(user_id),))
-                total_size = cursor.fetchone()[0]
-    finally:
-        pool.putconn(conn)
-    return total_size
+    sql = 'select count(1) from user_sub_good where user_id=%s and state = 1'
+    return _execute(sql=sql, parameters=(str(user_id),), handler=(lambda cursor: cursor.fetchone()[0]))
 
 
 def add_user_good_info(user_good_info):
@@ -89,9 +82,8 @@ def add_good_info(good_info):
         pool.putconn(conn)
 
 
-def find_all_good():
+def find_all_good(handler):
     conn = pool.getconn()
-    goods = []
     try:
         with conn:
             with conn.cursor() as cursor:
@@ -99,13 +91,11 @@ def find_all_good():
                     where state = 1;
                     '''
                 cursor.execute(sql)
-                all_results = cursor.fetchall()
+                for result in cursor:
+                    good_info = GoodInfo(good_id=result[0], price=result[1], name=result[2], stock_state=result[3])
+                    handler(good_info)
     finally:
         pool.putconn(conn)
-    for result in all_results:
-        goods.append(
-            GoodInfo(good_id=result[0], price=result[1], name=result[2], stock_state=result[3]))
-    return goods
 
 
 def disable_redundant_good_info(good_id):
@@ -240,7 +230,7 @@ def update_good_stock_state(good_id, state):
         pool.putconn(conn)
 
 
-def find_all_active_user():
+def find_all_active_user(consumer):
     conn = pool.getconn()
     try:
         with conn:
@@ -249,28 +239,34 @@ def find_all_active_user():
                     "user" u on usg.user_id = u.id where usg.state = 1 
                     group by (u.id, u.chat_id);'''
                 cursor.execute(sql)
-                all_results = cursor.fetchall()
+                executor = ProcessPoolExecutor(max_workers=3)
+                futures = []
+                for record in cursor:
+                    future = executor.submit(consumer, record)
+                    futures.append(future)
+                executor.shutdown(True)
+                for future in futures:
+                    print(future.result())
     finally:
         pool.putconn(conn)
-    return all_results
 
 
-def disable_user_and_user_sub_goods(inactive_user_ids):
-    if not inactive_user_ids:
+def disable_user_and_user_sub_goods(inactive_user_id):
+    if not inactive_user_id:
         return
 
     conn = pool.getconn()
-    logger.info("Not active user counts : %s", inactive_user_ids)
+    logger.info("Not active user counts : %s", inactive_user_id)
     try:
         with conn:
             with conn.cursor() as cursor:
                 update_user_sql = '''UPDATE "user"
                 SET state = 0
-                WHERE id in %s;'''
+                WHERE id = %s;'''
                 update_user_sub_good_sql = '''UPDATE user_sub_good
                 SET state = 0
-                WHERE user_id in %s;'''
-                cursor.execute(update_user_sub_good_sql, (inactive_user_ids,))
-                cursor.execute(update_user_sql, (inactive_user_ids,))
+                WHERE user_id = %s;'''
+                cursor.execute(update_user_sub_good_sql, (inactive_user_id,))
+                cursor.execute(update_user_sql, (inactive_user_id,))
     finally:
         pool.putconn(conn)
