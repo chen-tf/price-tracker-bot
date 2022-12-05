@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - feature/study_github_action_with_flyio
 
 jobs:
   CI:
@@ -22,7 +21,7 @@ jobs:
           echo "Finish CI test"
 
   CD-dev:
-    name: Deploy to Fly.io
+    name: Deploy to Fly.io develop
     needs: CI
     runs-on: ubuntu-latest
     steps:
