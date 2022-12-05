@@ -1,1 +1,1 @@
-web: python3 pt_scheduler.py
+web: python3 pt_bot.py

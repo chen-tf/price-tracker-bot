@@ -40,10 +40,10 @@ def run():
         bot_dispatcher = bot_updater.dispatcher
 
     # add handlers
-    start_handler = CommandHandler('start', start, run_async=True)
+    start_handler = CommandHandler('start', start)
     bot_dispatcher.add_handler(start_handler)
 
-    line_handler = CommandHandler('line', line, run_async=True)
+    line_handler = CommandHandler('line', line)
     bot_dispatcher.add_handler(line_handler)
 
     add_good_conv_handler = ConversationHandler(
@@ -57,10 +57,10 @@ def run():
 
     bot_dispatcher.add_handler(add_good_conv_handler)
 
-    my_good_handler = CommandHandler('my', my, run_async=True)
+    my_good_handler = CommandHandler('my', my)
     bot_dispatcher.add_handler(my_good_handler)
 
-    clear_all_my_good_handler = CommandHandler('clearall', clearall, run_async=True)
+    clear_all_my_good_handler = CommandHandler('clearall', clearall)
     bot_dispatcher.add_handler(clear_all_my_good_handler)
 
     clear_conv_handler = ConversationHandler(
@@ -114,7 +114,7 @@ def add_good(update, context):
         if 'https://momo.dm' in url:
             match = re.search('https.*momo.dm.*', url)
             response = requests.request("GET", match.group(0), headers={'user-agent': pt_config.USER_AGENT},
-                                        timeout=pt_config.MOMO_REQUEST_TIMEOUT)
+                                        timeout=(10, 15))
             url = response.url
         r = urlparse(url)
         d = parse_qs(r.query)
@@ -229,4 +229,6 @@ def is_blocked_by_user(chat_id):
 
 
 if __name__ == '__main__':
+    logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                        level=pt_config.LOGGING_LEVEL, force=True)
     run()
