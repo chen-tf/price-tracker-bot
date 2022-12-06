@@ -1,10 +1,7 @@
-name: CICD
+name: Main_CICD
 
 on:
   push:
-    branches:
-      - main
-  pull_request:
     branches:
       - main
 
@@ -21,7 +18,7 @@ jobs:
 
       - name: Run unit tests
         run: |
-          echo "Finish CI test"
+          echo "Finish CI test in main"
 
   CD-dev:
     name: Deploy to Fly.io develop
