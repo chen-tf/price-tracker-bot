@@ -1,4 +1,4 @@
-name: Main_CICD
+name: Main_CD
 
 on:
   push:
@@ -6,20 +6,6 @@ on:
       - main
 
 jobs:
-  CI:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.9'
-
-      - name: Run unit tests
-        run: |
-          echo "Finish CI test in main"
-
   CD-dev:
     name: Deploy to Fly.io develop
     needs: CI

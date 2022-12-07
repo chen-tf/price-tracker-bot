@@ -1,11 +1,13 @@
-name: Develop_CI
+name: CI_test
 
 on:
   pull_request:
     branches:
+      - main
       - develop
   push:
     branches:
+      - main
       - develop
 
 jobs:
