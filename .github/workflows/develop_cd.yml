@@ -1,31 +1,17 @@
-name: Develop_CICD
+name: Develop_CD
 
 on:
-  pull_request:
+  push:
     branches:
-      - main
+      - develop
 
 jobs:
-  CI:
+  CD-dev:
+    name: Deploy to Fly.io develop
+    needs: CI
+    environment: beta
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.9'
-
-      - name: Run unit tests
-        run: |
-          echo "Finish CI test in develop"
-
-#  CD-dev:
-#    name: Deploy to Fly.io develop
-#    needs: CI
-#    environment: beta
-#    runs-on: ubuntu-latest
-#    steps:
 #      - uses: actions/checkout@v3
 #      - uses: superfly/flyctl-actions/setup-flyctl@master
 #      - run: |
@@ -38,4 +24,4 @@ jobs:
 #          DB_USER=${{ secrets.DB_USER }}
 #        env:
 #          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-#      - run: echo "Deploy to fly develop"
+      - run: echo "Deploy to fly develop"
