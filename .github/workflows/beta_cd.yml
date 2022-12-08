@@ -1,4 +1,4 @@
-name: Main_CD
+name: Beta_CD
 
 on:
   push:
