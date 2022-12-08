@@ -1,0 +1,27 @@
+name: Beta_CD
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  CD-dev:
+    name: Deploy to Fly.io develop
+    needs: CI
+    environment: beta
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - run: |
+          flyctl deploy --config fly.toml --remote-only -e \
+          BOT_TOKEN=${{ secrets.BOT_TOKEN }},\
+          DB_HOST=${{ secrets.DB_HOST }},\
+          DB_NAME=${{ secrets.DB_NAME }},\
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }},\
+          DB_PORT=${{ secrets.DB_PORT }},\
+          DB_USER=${{ secrets.DB_USER }}
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      - run: echo "Deploy to fly develop"
