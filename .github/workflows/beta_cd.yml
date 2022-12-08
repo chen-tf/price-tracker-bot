@@ -8,7 +8,6 @@ on:
 jobs:
   CD-dev:
     name: Deploy to Fly.io develop
-    needs: CI
     environment: beta
     runs-on: ubuntu-latest
     steps:
