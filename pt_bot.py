@@ -1,31 +1,50 @@
 import logging
 import re
-
 import requests
 import telegram
-from flask import Flask, request, Response
+from flask import Flask, request, Response, render_template
 from telegram import ChatAction
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler
-
 import pt_config
 import pt_error
 import pt_momo
 import pt_service
+import pt_service
 from lotify_client import get_lotify_client
 from pt_entity import UserGoodInfo, GoodInfo
+import os
+
+template_dir = os.path.abspath('Templates')
+
+lotify_client = get_lotify_client()
 
 updater = Updater(token=pt_config.BOT_TOKEN, use_context=True)
 dispatcher = updater.dispatcher
 bot = telegram.Bot(token=pt_config.BOT_TOKEN)
 logger = logging.getLogger('Bot')
-lotify_client = get_lotify_client()
 
 UNTRACK = range(1)
 ADD_GOOD = range(1)
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=pt_config.LOGGING_LEVEL, force=True)
-app = Flask(__name__)
+app = Flask(__name__, template_folder=template_dir)
+
+
+@app.route('/', methods=['GET'])
+def index():
+    # health check
+    return render_template('index.html')
+
+
+@app.route("/line-subscribe", methods=['GET'])
+def subscribe():
+    args = request.args
+    code = args['code']
+    user_id = args['state']
+    access_token = lotify_client.get_access_token(code=code)
+    pt_service.update_user_line_token(user_id=user_id, line_notify_token=access_token)
+    return render_template('success.html')
 
 
 # required hook endpoint to get the data from telegram
@@ -228,8 +247,10 @@ def is_blocked_by_user(chat_id):
 
 if __name__ == '__main__':
     _register_bot_command_handler()
+
     if pt_config.TELEGRAM_BOT_MODE == 'polling':
         updater.start_polling()
-    else:
-        updater.bot.setWebhook(url=pt_config.WEBHOOK_URL + 'webhook/' + pt_config.BOT_TOKEN)
-        app.run('0.0.0.0', pt_config.PORT, False, True)
+
+    # 不確定再一起會不會衝突，待測試
+    updater.bot.setWebhook(url=pt_config.WEBHOOK_URL + 'webhook/' + pt_config.BOT_TOKEN)
+    app.run('0.0.0.0', pt_config.PORT, False, True)
