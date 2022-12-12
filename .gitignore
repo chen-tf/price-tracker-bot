@@ -130,3 +130,9 @@ dmypy.json
 
 # IDEA
 .idea/
+
+# PostgreSQL
+postgres-data/
+
+# vscode
+.vscode/
