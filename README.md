@@ -1,6 +1,94 @@
+# price-tracker-bot
+
+## 目錄
+
+- [price-tracker-bot](#price-tracker-bot)
+  - [目錄](#目錄)
+  - [簡介](#簡介)
+  - [如何在本機端使用](#如何在本機端使用)
+    - [下載專案](#下載專案)
+    - [建立 Python 環境](#建立-python-環境)
+    - [建立 PostgreSQL](#建立-postgresql)
+    - [建立 Telegram bot](#建立-telegram-bot)
+    - [在本機端運行](#在本機端運行)
+  - [更新](#更新)
+      - [2022.11.12](#20221112)
+      - [2022.09.13](#20220913)
+  - [功能](#功能)
+  - [Demo Bot](#demo-bot)
+  - [環境建置](#環境建置)
+    - [database](#database)
+    - [環境變數](#環境變數)
+    - [Telegram bot](#telegram-bot)
+    - [Bot 接收訊息方式](#bot-接收訊息方式)
+    - [fly.io](#flyio)
+    - [Supabase (Free Postgres Online)](#supabase-free-postgres-online)
+    - [heroku (免費方案即將關閉，建議遷移至flyio)](#heroku-免費方案即將關閉建議遷移至flyio)
+  - [deploy](#deploy)
+    - [Heroku git deploy](#heroku-git-deploy)
+  - [執行方式](#執行方式)
+    - [Build simple local postgres env (optional)](#build-simple-local-postgres-env-optional)
+  - [機器人指令](#機器人指令)
+    - [Command menu](#command-menu)
+
 ## 簡介
 
 price-tracker-bot is a telegram bot that can trace the price on [momoshop](https://www.momoshop.com.tw "momoshop").
+
+## 如何在本機端使用
+
+### 下載專案
+
+- 從 Github clone 此專案
+
+```bash
+git clone https://github.com/chen-tf/price-tracker-bot.git 
+```
+
+### 建立 Python 環境
+
+- 安裝 Python，推薦版本 3.9
+  - [python.org](https://www.python.org/)
+- 在專案資料夾內，安裝相關套件
+  - `pip install -r requirements.txt`
+
+### 建立 PostgreSQL
+
+- 安裝 Docker
+  - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- 安裝 PostgreSQL 環境
+  - 在專案資料夾內，執行 `docker-compose up`，創建並啟動 PostgreSQL 環境
+
+### 建立 Telegram bot
+
+- 加入 [Telegram](https://web.telegram.org/)
+- 在對話視窗內呼叫 [@BotFather](https://t.me/botfather)，依照提示建立一個機器人，取得建立的 Telegram bot 的 Token
+  - [Creating a new bot](https://core.telegram.org/bots/features#creating-a-new-bot)
+  - Token Sample：`110201543:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw`
+
+### 在本機端運行
+
+- 在專案資料夾內建立一個檔名為 `.env` 檔案，內容如下
+- 將 BOT_TOKEN 內容變更為建立 Telegram bot 時取得的 Token
+
+```text
+BOT_TOKEN = "{replace_me}"
+DB_HOST = "localhost"
+DB_NAME = "postgres"
+DB_PASSWORD = "postgres"
+DB_USER = "postgres"
+DB_PORT = 5432
+LOGGING_LEVEL = "INFO"
+TELEGRAM_BOT_MODE = "polling"
+```
+
+- 在專案資料夾內執行檔案
+
+```bash
+python pt_scheduler.py
+```
+
+## 更新
 
 #### 2022.11.12
 
