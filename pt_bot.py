@@ -9,7 +9,6 @@ import pt_config
 import pt_error
 import pt_momo
 import pt_service
-import pt_service
 from lotify_client import get_lotify_client
 from pt_entity import UserGoodInfo, GoodInfo
 import os
@@ -33,8 +32,17 @@ app = Flask(__name__, template_folder=template_dir)
 
 @app.route('/', methods=['GET'])
 def index():
+
     # health check
     return render_template('index.html')
+
+
+@app.route('/callback', methods=['POST'])
+def callback():
+    # 取得授權碼 (Authorization Code)
+    body = request.get_data().decode("utf-8")
+
+    return 'Got body: {}'.format(body)
 
 
 @app.route("/line-subscribe", methods=['GET'])
@@ -247,10 +255,9 @@ def is_blocked_by_user(chat_id):
 
 if __name__ == '__main__':
     _register_bot_command_handler()
-
     if pt_config.TELEGRAM_BOT_MODE == 'polling':
         updater.start_polling()
-
-    # 不確定再一起會不會衝突，待測試
-    updater.bot.setWebhook(url=pt_config.WEBHOOK_URL + 'webhook/' + pt_config.BOT_TOKEN)
-    app.run('0.0.0.0', pt_config.PORT, False, True)
+    else:
+        updater.bot.setWebhook(url=pt_config.WEBHOOK_URL + 'webhook/' + pt_config.BOT_TOKEN)
+        port = int(os.environ.get('PORT', '8443'))
+        app.run('0.0.0.0', port)
