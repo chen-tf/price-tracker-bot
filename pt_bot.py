@@ -34,15 +34,7 @@ app = Flask(__name__, template_folder=template_dir)
 def index():
 
     # health check
-    return render_template('index.html')
-
-
-@app.route('/callback', methods=['POST'])
-def callback():
-    # 取得授權碼 (Authorization Code)
-    body = request.get_data().decode("utf-8")
-
-    return 'Got body: {}'.format(body)
+    return 'ok', 200
 
 
 @app.route("/line-subscribe", methods=['GET'])
@@ -99,8 +91,6 @@ def _register_bot_command_handler():
     )
 
     dispatcher.add_handler(clear_conv_handler)
-
-    # updater.idle()
 
 
 def start(update, context):
@@ -261,3 +251,5 @@ if __name__ == '__main__':
         updater.bot.setWebhook(url=pt_config.WEBHOOK_URL + 'webhook/' + pt_config.BOT_TOKEN)
         port = int(os.environ.get('PORT', '8443'))
         app.run('0.0.0.0', port)
+        # 之後 gunicorn 起來之後要改為 127.0.0.1
+        # app.run('127.0.0.1', port)
