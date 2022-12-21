@@ -21,6 +21,7 @@ pytest-order = "~=1.0.1"
 pytest-sugar = "~=0.9.4"
 pytest-mock = "~=3.10.0"
 coverage = "~=6.3.2"
+gunicorn = "~=20.1.0"
 
 [dev-packages]
 
