@@ -16,3 +16,5 @@ pytest-sugar~=0.9.4
 pytest-mock~=3.10.0
 coverage~=6.3.2
 gunicorn~=20.1.0
+SQLAlchemy~=1.4.45
+flask-migrate~=4.0.0
