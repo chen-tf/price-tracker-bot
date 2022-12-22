@@ -245,6 +245,42 @@ echo "$(git diff --name-only --diff-filter=ACMR HEAD *.py)" | xargs pylint -sn
 pylint *.py
 ```
 
+### pre-commit  
+  
+確認 pre-commit 是否已安裝至專案環境底下  
+  
+```bash  
+# check  
+pre-commit -V  
+  
+# install with requirements.txt  
+pip install -r requirements.txt  
+  
+# or directly install 
+pip install pre-commit  
+```  
+  
+將 pre-commit hook 安裝至專案裡的 .git/hooks 資料夾底下  
+  
+```bash  
+# init hook, will create .git/hooks/pre-commit  
+pre-commit install --install-hooks  
+```  
+  
+執行 git commit  
+  
+```bash  
+git commit -m 'feat: hello world'
+```  
+
+成功時畫面如下  
+  
+![succeful-pre-commit](https://i.imgur.com/1TNS07R.gif)  
+  
+失敗時，需要調整相對應的檔案，並重新將檔案加入 git 版控，再重新進行 commit  
+  
+![fail-pre-commit](https://i.imgur.com/Zo0RBxo.gif)
+
 ---
 
 ## deploy
