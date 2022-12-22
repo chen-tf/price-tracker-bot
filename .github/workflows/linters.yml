@@ -44,7 +44,9 @@ jobs:
             *.py
       - name: pylint
         run: |
-          echo ${{ steps.changed-files.outputs.all_changed_files }} | xargs pylint
+          [[ -n "${{ steps.changed-files.outputs.all_changed_files }}" ]] &&
+          echo "${{ steps.changed-files.outputs.all_changed_files }}" | xargs pylint ||
+          echo "0 Python files changed."
   isort:
     name: isort
     runs-on: ubuntu-latest
@@ -69,7 +71,9 @@ jobs:
             *.py
       - name: isort
         run: |
-          echo ${{ steps.changed-files.outputs.all_changed_files }} | xargs isort --check --diff
+          [[ -n "${{ steps.changed-files.outputs.all_changed_files }}" ]] &&
+          echo "${{ steps.changed-files.outputs.all_changed_files }}" | xargs isort --check --diff ||
+          echo "0 Python files changed."
   black:
     name: black
     runs-on: ubuntu-latest
@@ -94,4 +98,6 @@ jobs:
             *.py
       - name: black
         run: |
-          echo ${{ steps.changed-files.outputs.all_changed_files }} | xargs black --check --diff
+          [[ -n "${{ steps.changed-files.outputs.all_changed_files }}" ]] &&
+          echo "${{ steps.changed-files.outputs.all_changed_files }}" | xargs black --check --diff ||
+          echo "0 Python files changed."
