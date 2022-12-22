@@ -1,0 +1,97 @@
+name: Linters
+
+on:
+  pull_request:
+    branches:
+      - main
+
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: 3.9.12
+
+jobs:
+  pylint:
+    name: pylint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Set package version
+        run: |
+          pylint_version="$(grep '^pylint' requirements.txt | grep -oE '\-?[0-9]+\.[0-9]+\.[0-9]+')"
+          echo "pylint_version=$pylint_version" >> "$GITHUB_ENV"
+      - name: Install package
+        run: python -m pip install pylint==${{ env.pylint_version }}
+      - name: Set changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v35
+        with:
+          files: |
+            *.py
+      - name: pylint
+        run: |
+          echo ${{ steps.changed-files.outputs.all_changed_files }} | xargs pylint
+  isort:
+    name: isort
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION || '3.9.12'}}
+      - name: Set package version
+        run: |
+          isort_version="$(grep '^isort' requirements.txt | grep -oE '\-?[0-9]+\.[0-9]+\.[0-9]+')"
+          echo "isort_version=$isort_version" >> "$GITHUB_ENV"
+      - name: Install package
+        run: python -m pip install isort==${{ env.isort_version }}
+      - name: Set changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v35
+        with:
+          files: |
+            *.py
+      - name: isort
+        run: |
+          echo ${{ steps.changed-files.outputs.all_changed_files }} | xargs isort --check --diff
+  black:
+    name: black
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION || '3.9.12'}}
+      - name: Set package version
+        run: |
+          black_version="$(grep '^black' requirements.txt | grep -oE '\-?[0-9]+\.[0-9]+\.[0-9]+')"
+          echo "black_version=$black_version" >> "$GITHUB_ENV"
+      - name: Install package
+        run: python -m pip install black==${{ env.black_version }}
+      - name: Set changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v35
+        with:
+          files: |
+            *.py
+      - name: black
+        run: |
+          echo ${{ steps.changed-files.outputs.all_changed_files }} | xargs black --check --diff
