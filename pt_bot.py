@@ -1,50 +1,67 @@
 import logging
 import re
-
 import requests
 import telegram
+from flask import Flask, request, Response, render_template
 from telegram import ChatAction
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler
-
 import pt_config
 import pt_error
 import pt_momo
 import pt_service
 from lotify_client import get_lotify_client
 from pt_entity import UserGoodInfo, GoodInfo
+import os
+
+template_dir = os.path.abspath('Templates')
+
+lotify_client = get_lotify_client()
 
 updater = Updater(token=pt_config.BOT_TOKEN, use_context=True)
 dispatcher = updater.dispatcher
 bot = telegram.Bot(token=pt_config.BOT_TOKEN)
 logger = logging.getLogger('Bot')
-lotify_client = get_lotify_client()
 
 UNTRACK = range(1)
 ADD_GOOD = range(1)
 
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    level=pt_config.LOGGING_LEVEL, force=True)
+app = Flask(__name__, template_folder=template_dir)
 
-def run():
-    if pt_config.TELEGRAM_BOT_MODE == 'polling':
-        bot_updater = Updater(token=pt_config.BOT_TOKEN, use_context=True)
-        bot_dispatcher = bot_updater.dispatcher
-        bot_updater.start_polling()
-    else:
-        import os
-        port = int(os.environ.get('PORT', '8443'))
-        bot_updater = Updater(pt_config.BOT_TOKEN)
 
-        bot_updater.start_webhook(listen="0.0.0.0",
-                                  port=port,
-                                  url_path=pt_config.BOT_TOKEN,
-                                  webhook_url=pt_config.WEBHOOK_URL + pt_config.BOT_TOKEN)
-        bot_dispatcher = bot_updater.dispatcher
+@app.route('/', methods=['GET'])
+def index():
 
-    # add handlers
+    # health check
+    return 'ok', 200
+
+
+@app.route("/line-subscribe", methods=['GET'])
+def subscribe():
+    args = request.args
+    code = args['code']
+    user_id = args['state']
+    access_token = lotify_client.get_access_token(code=code)
+    pt_service.update_user_line_token(user_id=user_id, line_notify_token=access_token)
+    return render_template('success.html')
+
+
+# required hook endpoint to get the data from telegram
+@app.route('/webhook/' + pt_config.BOT_TOKEN, methods=['POST', 'GET'])
+def webhook_handler():
+    if request.method == "POST":
+        update = telegram.Update.de_json(request.get_json(force=True), bot)
+        dispatcher.process_update(update)
+    return Response('OK', status=200)
+
+
+def _register_bot_command_handler():
     start_handler = CommandHandler('start', start)
-    bot_dispatcher.add_handler(start_handler)
+    dispatcher.add_handler(start_handler)
 
     line_handler = CommandHandler('line', line)
-    bot_dispatcher.add_handler(line_handler)
+    dispatcher.add_handler(line_handler)
 
     add_good_conv_handler = ConversationHandler(
         entry_points=[CommandHandler('add', add)],
@@ -55,13 +72,13 @@ def run():
         run_async=True
     )
 
-    bot_dispatcher.add_handler(add_good_conv_handler)
+    dispatcher.add_handler(add_good_conv_handler)
 
     my_good_handler = CommandHandler('my', my)
-    bot_dispatcher.add_handler(my_good_handler)
+    dispatcher.add_handler(my_good_handler)
 
     clear_all_my_good_handler = CommandHandler('clearall', clearall)
-    bot_dispatcher.add_handler(clear_all_my_good_handler)
+    dispatcher.add_handler(clear_all_my_good_handler)
 
     clear_conv_handler = ConversationHandler(
         entry_points=[CommandHandler('clear', clear)],
@@ -73,9 +90,7 @@ def run():
         run_async=True
     )
 
-    bot_dispatcher.add_handler(clear_conv_handler)
-
-    bot_updater.idle()
+    dispatcher.add_handler(clear_conv_handler)
 
 
 def start(update, context):
@@ -229,6 +244,12 @@ def is_blocked_by_user(chat_id):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                        level=pt_config.LOGGING_LEVEL, force=True)
-    run()
+    _register_bot_command_handler()
+    if pt_config.TELEGRAM_BOT_MODE == 'polling':
+        updater.start_polling()
+    else:
+        updater.bot.setWebhook(url=pt_config.WEBHOOK_URL + 'webhook/' + pt_config.BOT_TOKEN)
+        port = int(os.environ.get('PORT', '8443'))
+        app.run('0.0.0.0', port)
+        # 之後 gunicorn 起來之後要改為 127.0.0.1
+        # app.run('127.0.0.1', port)
