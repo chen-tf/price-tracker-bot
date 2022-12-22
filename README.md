@@ -207,7 +207,43 @@ name
 
 ![預期中的Add-ons](https://i.imgur.com/s1Et0bz.png)
 
+### Linter
 
+使用 [isort](https://github.com/PyCQA/isort) (sort imports)
+
+```bash
+# cheat
+echo "$(git diff --name-only --diff-filter=ACMR HEAD *.py)" | xargs isort
+
+# usage - never use
+isort **/*.py
+```
+
+使用 [black](https://github.com/psf/black) (formatter)
+
+```bash
+# cheat
+echo "$(git diff --name-only --diff-filter=ACMR HEAD *.py)" | xargs black
+
+# find py file which place would be reformatted 
+echo "$(git diff --name-only --diff-filter=ACMR HEAD *.py)" | xargs black --diff
+
+# use black for specific file
+black foo.py
+
+# usage - never use, it will reformat py file at all
+black *.py
+```
+
+使用 [pylint](https://github.com/PyCQA/pylint) (lint)
+
+```bash
+# cheat
+echo "$(git diff --name-only --diff-filter=ACMR HEAD *.py)" | xargs pylint -sn
+
+# usage - never use, cause too many output
+pylint *.py
+```
 
 ---
 
