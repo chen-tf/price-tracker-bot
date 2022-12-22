@@ -1,4 +1,4 @@
-# TODO depercated
+# deprecated
 import os
 
 from flask import Flask, request, render_template
