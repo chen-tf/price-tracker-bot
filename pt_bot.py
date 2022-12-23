@@ -27,6 +27,11 @@ UNTRACK = range(1)
 ADD_GOOD = range(1)
 
 
+def consume_request(request):
+    update = telegram.Update.de_json(request.get_json(force=True), bot)
+    telegram_dispatcher.process_update(update)
+
+
 def _register_bot_command_handler():
     start_handler = CommandHandler('start', start)
     telegram_dispatcher.add_handler(start_handler)
@@ -126,7 +131,7 @@ def add_good(update, context):
         context.bot.send_message(chat_id=update.effective_chat.id, text='商品頁面解析失敗')
     except pt_error.ExceedLimitedSizeError:
         context.bot.send_message(chat_id=update.effective_chat.id,
-                                          text='追蹤物品已達%s件' % pt_config.USER_SUB_GOOD_LIMITED)
+                                 text='追蹤物品已達%s件' % pt_config.USER_SUB_GOOD_LIMITED)
     except pt_error.NotValidMomoURL:
         context.bot.send_message(chat_id=update.effective_chat.id, text='無效momo商品連結')
     except Exception:

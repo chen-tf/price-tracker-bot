@@ -15,9 +15,6 @@ lotify_client = get_lotify_client()
 
 logger = logging.getLogger('app')
 
-UNTRACK = range(1)
-ADD_GOOD = range(1)
-
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=pt_config.LOGGING_LEVEL, force=True)
 
@@ -27,7 +24,7 @@ app = Flask(__name__, template_folder=template_dir)
 @app.route('/', methods=['GET'])
 def index():
     # health check
-    return 'ok', 200
+    return Response('OK', status=200)
 
 
 @app.route("/line-subscribe", methods=['GET'])
@@ -44,8 +41,7 @@ def subscribe():
 @app.route('/webhook/' + pt_config.BOT_TOKEN, methods=['POST', 'GET'])
 def webhook_handler():
     if request.method == "POST":
-        update = telegram.Update.de_json(request.get_json(force=True), pt_bot.bot)
-        pt_bot.telegram_dispatcher.process_update(update)
+        pt_bot.consume_request(request)
     return Response('OK', status=200)
 
 
