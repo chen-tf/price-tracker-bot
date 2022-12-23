@@ -1,7 +1,6 @@
 import logging
 import os
 
-import telegram
 from flask import Flask, request, Response, render_template
 
 import pt_bot
