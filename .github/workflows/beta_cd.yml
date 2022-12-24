@@ -20,7 +20,10 @@ jobs:
           DB_NAME=${{ secrets.DB_NAME }},\
           DB_PASSWORD=${{ secrets.DB_PASSWORD }},\
           DB_PORT=${{ secrets.DB_PORT }},\
-          DB_USER=${{ secrets.DB_USER }}
+          DB_USER=${{ secrets.DB_USER }},\
+          LOGGING_LEVEL=${{ secrets.LOGGING_LEVEL }},\
+          TELEGRAM_BOT_MODE=${{ secrets.TELEGRAM_BOT_MODE }},\
+          WEBHOOK_URL=${{ secrets.WEBHOOK_URL }}
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
       - run: echo "Deploy to fly develop"

@@ -1,84 +1,59 @@
 import logging
+import os
 import re
+
 import requests
 import telegram
-from flask import Flask, request, Response, render_template
 from telegram import ChatAction
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler
+
 import pt_config
 import pt_error
 import pt_momo
 import pt_service
 from lotify_client import get_lotify_client
 from pt_entity import UserGoodInfo, GoodInfo
-import os
 
 template_dir = os.path.abspath('Templates')
 
 lotify_client = get_lotify_client()
 
-updater = Updater(token=pt_config.BOT_TOKEN, use_context=True)
-dispatcher = updater.dispatcher
+telegram_updater = Updater(token=pt_config.BOT_TOKEN, use_context=True)
+telegram_dispatcher = telegram_updater.dispatcher
 bot = telegram.Bot(token=pt_config.BOT_TOKEN)
-logger = logging.getLogger('Bot')
+logger = logging.getLogger('bot')
 
 UNTRACK = range(1)
 ADD_GOOD = range(1)
 
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=pt_config.LOGGING_LEVEL, force=True)
-app = Flask(__name__, template_folder=template_dir)
 
-
-@app.route('/', methods=['GET'])
-def index():
-
-    # health check
-    return 'ok', 200
-
-
-@app.route("/line-subscribe", methods=['GET'])
-def subscribe():
-    args = request.args
-    code = args['code']
-    user_id = args['state']
-    access_token = lotify_client.get_access_token(code=code)
-    pt_service.update_user_line_token(user_id=user_id, line_notify_token=access_token)
-    return render_template('success.html')
-
-
-# required hook endpoint to get the data from telegram
-@app.route('/webhook/' + pt_config.BOT_TOKEN, methods=['POST', 'GET'])
-def webhook_handler():
-    if request.method == "POST":
-        update = telegram.Update.de_json(request.get_json(force=True), bot)
-        dispatcher.process_update(update)
-    return Response('OK', status=200)
+def consume_request(request):
+    update = telegram.Update.de_json(request.get_json(force=True), bot)
+    telegram_dispatcher.process_update(update)
 
 
 def _register_bot_command_handler():
     start_handler = CommandHandler('start', start)
-    dispatcher.add_handler(start_handler)
+    telegram_dispatcher.add_handler(start_handler)
 
     line_handler = CommandHandler('line', line)
-    dispatcher.add_handler(line_handler)
+    telegram_dispatcher.add_handler(line_handler)
 
     add_good_conv_handler = ConversationHandler(
         entry_points=[CommandHandler('add', add)],
         fallbacks=[CommandHandler('cancel', cancel)],
         states={
             UNTRACK: [MessageHandler(Filters.text & (~Filters.command), add_good)],
-        },
-        run_async=True
+        }
     )
 
-    dispatcher.add_handler(add_good_conv_handler)
+    telegram_dispatcher.add_handler(add_good_conv_handler)
 
     my_good_handler = CommandHandler('my', my)
-    dispatcher.add_handler(my_good_handler)
+    telegram_dispatcher.add_handler(my_good_handler)
 
     clear_all_my_good_handler = CommandHandler('clearall', clearall)
-    dispatcher.add_handler(clear_all_my_good_handler)
+    telegram_dispatcher.add_handler(clear_all_my_good_handler)
 
     clear_conv_handler = ConversationHandler(
         entry_points=[CommandHandler('clear', clear)],
@@ -86,11 +61,10 @@ def _register_bot_command_handler():
 
         states={
             UNTRACK: [MessageHandler(Filters.text & (~Filters.command), untrack)],
-        },
-        run_async=True
+        }
     )
 
-    dispatcher.add_handler(clear_conv_handler)
+    telegram_dispatcher.add_handler(clear_conv_handler)
 
 
 def start(update, context):
@@ -243,13 +217,8 @@ def is_blocked_by_user(chat_id):
     return False
 
 
-if __name__ == '__main__':
-    _register_bot_command_handler()
-    if pt_config.TELEGRAM_BOT_MODE == 'polling':
-        updater.start_polling()
-    else:
-        updater.bot.setWebhook(url=pt_config.WEBHOOK_URL + 'webhook/' + pt_config.BOT_TOKEN)
-        port = int(os.environ.get('PORT', '8443'))
-        app.run('0.0.0.0', port)
-        # 之後 gunicorn 起來之後要改為 127.0.0.1
-        # app.run('127.0.0.1', port)
+_register_bot_command_handler()
+if pt_config.TELEGRAM_BOT_MODE == 'polling':
+    telegram_updater.start_polling()
+else:
+    telegram_updater.bot.setWebhook(url=pt_config.WEBHOOK_URL + 'webhook/' + pt_config.BOT_TOKEN)
