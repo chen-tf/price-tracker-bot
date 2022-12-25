@@ -14,9 +14,6 @@ lotify_client = get_lotify_client()
 
 logger = logging.getLogger('app')
 
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=pt_config.LOGGING_LEVEL, force=True)
-
 app = Flask(__name__, template_folder=template_dir)
 
 

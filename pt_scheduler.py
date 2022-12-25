@@ -3,17 +3,20 @@ import threading
 import time
 
 import schedule
+from flask import Flask, Response
 
 import pt_config
 import pt_scheduler
 import pt_service
 
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=pt_config.LOGGING_LEVEL, force=True)
-logger = logging.getLogger('App')
-if __name__ == '__main__':
-    threading.Thread(target=pt_scheduler.my_job).start()
-    logger.debug('Momo price tracker bot started.')
+logger = logging.getLogger('Scheduler')
+app = Flask(__name__)
+
+
+@app.route('/', methods=['GET'])
+def index():
+    # health check
+    return Response('OK', status=200)
 
 
 def my_job():
@@ -22,3 +25,7 @@ def my_job():
     while True:
         schedule.run_pending()
         time.sleep(2)
+
+
+threading.Thread(target=pt_scheduler.my_job).start()
+logger.info('Momo price tracker scheduler started.')
