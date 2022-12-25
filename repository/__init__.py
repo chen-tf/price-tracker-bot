@@ -1,7 +1,6 @@
 import functools
 
 from repository.models import GoodInfo, db
-from repository.app import app
 
 
 def auto_commit(func):
@@ -61,25 +60,25 @@ def delete_good_info(good_id, **kwargs):
     r = GoodInfo.query.filter_by(id=good_id).delete()
     return r
 
+# if __name__ == '__main__':
+#     from app import app
+#     with app.app_context():
+#         good_id = "1236"
+#         good_info_data = {
+#             "good_id": good_id,
+#             "name": "test",
+#             "price": 4567,
+#             "stock_state": 12
+#         }
+#
+#         # create_good_info(good_info_data)
+#         # create_good_info2("123", 456, "test", 12)
+#         print(query_good_info())
+#
+#         update_good_stock_state(good_id, 21)
+#         print(query_good_info())
 
-if __name__ == '__main__':
-    with app.app_context():
-        good_id = "1236"
-        good_info_data = {
-            "good_id": good_id,
-            "name": "test",
-            "price": 4567,
-            "stock_state": 12
-        }
+# print(query_good_info())
 
-        # create_good_info(good_info_data)
-        # create_good_info2("123", 456, "test", 12)
-        print(query_good_info())
-
-        update_good_stock_state(good_id, 21)
-        print(query_good_info())
-
-    # print(query_good_info())
-
-    # print(delete_good_info(good_id))
-    # print(query_good_info())
+# print(delete_good_info(good_id))
+# print(query_good_info())

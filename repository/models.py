@@ -5,7 +5,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import UUID
 
-from repository.app import app
+from app import app
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db, compare_type=True)

@@ -19,6 +19,15 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 app = Flask(__name__, template_folder=template_dir)
 
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_DATABASE_URI'] = f"postgresql://{pt_config.DB_USER}:{pt_config.DB_PASSWORD}@" \
+                                        f"{pt_config.DB_HOST}:5432/{pt_config.DB_NAME}"
+
+# Can see the sql syntax
+# app.config['SQLALCHEMY_ECHO'] = True
+app.config['SQLALCHEMY_POOL_SIZE'] = 8
+app.config['SQLALCHEMY_POOL_TIMEOUT'] = 3
+
 
 @app.route('/', methods=['GET'])
 def index():

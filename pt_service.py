@@ -1,16 +1,27 @@
 # coding: utf-8
+import functools
 import logging
 
 import pt_error
 import pt_momo
 import pt_repository
+from app import app
 from lotify_client import get_lotify_client
 from pt_entity import GoodInfo
 from pt_momo import generate_momo_url_by_good_id
-from repository import create_good_info, app
+from repository import create_good_info
 
 logger = logging.getLogger('Service')
 lotify_client = get_lotify_client()
+
+
+def app_context(func):
+    @functools.wraps(func)
+    def wrapper(*args):
+        with app.app_context():
+            return func(*args)
+
+    return wrapper
 
 
 def sync_price():
@@ -106,10 +117,9 @@ def get_good_info(good_id):
     return pt_momo.find_good_info(good_id)
 
 
+@app_context
 def add_good_info(good_info):
-    # return pt_repository.add_good_info(good_info)
-    with app.app_context():
-        create_good_info(good_info.good_id, good_info.price, good_info.name, good_info.stock_state)
+    create_good_info(good_info.good_id, good_info.price, good_info.name, good_info.stock_state)
 
 
 def add_user_good_info(user_good_info):
