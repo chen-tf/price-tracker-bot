@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - dev/multi_fly.io_deploy
 
 jobs:
   deploy-app-beta:
