@@ -1,7 +1,11 @@
 {
     "_meta": {
         "hash": {
+<<<<<<< HEAD
             "sha256": "c33855884225583601a0b944fb4f652ec00955a0140a0ba47474f6a1ecd4081a"
+=======
+            "sha256": "9ef7c7450fad672df7cc90df855a7cc405f6aba9466faf4153e7f626ed7ddabc"
+>>>>>>> :fire: Uninstall sqlalchemy and flask-migrate to rebase main
         },
         "pipfile-spec": 6,
         "requires": {
@@ -135,6 +139,7 @@
             "index": "pypi",
             "version": "==2.2.2"
         },
+<<<<<<< HEAD
         "gunicorn": {
             "hashes": [
                 "sha256:9dcc4547dbb1cb284accfb15ab5667a0e5d1881cc443e0677b4882a4067a807e",
@@ -143,6 +148,8 @@
             "index": "pypi",
             "version": "==20.1.0"
         },
+=======
+>>>>>>> :fire: Uninstall sqlalchemy and flask-migrate to rebase main
         "idna": {
             "hashes": [
                 "sha256:814f528e8dead7d329833b91c5faa87d60bf71824cd12a7530b5526063d02cb4",
