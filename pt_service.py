@@ -7,6 +7,7 @@ import pt_repository
 from lotify_client import get_lotify_client
 from pt_entity import GoodInfo
 from pt_momo import generate_momo_url_by_good_id
+from repository import create_good_info, app
 
 logger = logging.getLogger('Service')
 lotify_client = get_lotify_client()
@@ -106,7 +107,9 @@ def get_good_info(good_id):
 
 
 def add_good_info(good_info):
-    return pt_repository.add_good_info(good_info)
+    # return pt_repository.add_good_info(good_info)
+    with app.app_context():
+        create_good_info(good_info.good_id, good_info.price, good_info.name, good_info.stock_state)
 
 
 def add_user_good_info(user_good_info):
