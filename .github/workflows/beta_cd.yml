@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - dev/multi_fly.io_deploy
 
 jobs:
   deploy-app-beta:
@@ -26,27 +27,6 @@ jobs:
           LINE_NOTIFY_REDIRECT_URL=${{ secrets.LINE_NOTIFY_REDIRECT_URL }},\
           LINE_NOTIFY_CLIENT_ID=${{ secrets.LINE_NOTIFY_CLIENT_ID }},\
           LINE_NOTIFY_CLIENT_SECRET=${{ secrets.LINE_NOTIFY_CLIENT_SECRET }},\
-          WEBHOOK_URL=${{ secrets.WEBHOOK_URL }}
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-      - run: echo "Deploy to fly develop"
-  deploy-scheduler-beta:
-    name: Deploy scheduler to Fly.io develop
-    environment: beta
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: superfly/flyctl-actions/setup-flyctl@master
-      - run: |
-          flyctl deploy --config fly-scheduler-beta.toml --remote-only -e \
-          BOT_TOKEN=${{ secrets.BOT_TOKEN }},\
-          DB_HOST=${{ secrets.DB_HOST }},\
-          DB_NAME=${{ secrets.DB_NAME }},\
-          DB_PASSWORD=${{ secrets.DB_PASSWORD }},\
-          DB_PORT=${{ secrets.DB_PORT }},\
-          DB_USER=${{ secrets.DB_USER }},\
-          LOGGING_LEVEL=${{ secrets.LOGGING_LEVEL }},\
-          TELEGRAM_BOT_MODE=${{ secrets.TELEGRAM_BOT_MODE }},\
           PERIOD_HOUR=${{ secrets.PERIOD_HOUR }},\
           WEBHOOK_URL=${{ secrets.WEBHOOK_URL }}
         env:

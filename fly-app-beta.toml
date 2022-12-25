@@ -17,10 +17,13 @@ auto_rollback = true
 
 [processes]
 web = "gunicorn -c gun_config.py app:app"
+scheduler = "python pt_scheduler.py"
 
 [[services]]
 http_checks = []
 internal_port = 8080
+# Make sure there's only one `processes` entry under `[[services]]`
+# defined under [processes] will be exposed to the public internet
 processes = ["web"]
 protocol = "tcp"
 script_checks = []
