@@ -1,5 +1,9 @@
 # price-tracker-bot
 
+[![linting: pylint](https://img.shields.io/badge/linting-pylint-yellowgreen)](https://github.com/PyCQA/pylint)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336)](https://pycqa.github.io/isort/)
+
 ## 目錄
 
 - [price-tracker-bot](#price-tracker-bot)
@@ -216,7 +220,79 @@ name
 
 ![預期中的Add-ons](https://i.imgur.com/s1Et0bz.png)
 
+### Linter
 
+使用 [isort](https://github.com/PyCQA/isort) (sort imports)
+
+```bash
+# cheat
+echo "$(git diff --name-only --diff-filter=ACMR HEAD *.py)" | xargs isort
+
+# usage - never use
+isort **/*.py
+```
+
+使用 [black](https://github.com/psf/black) (formatter)
+
+```bash
+# cheat
+echo "$(git diff --name-only --diff-filter=ACMR HEAD *.py)" | xargs black
+
+# find py file which place would be reformatted 
+echo "$(git diff --name-only --diff-filter=ACMR HEAD *.py)" | xargs black --diff
+
+# use black for specific file
+black foo.py
+
+# usage - never use, it will reformat py file at all
+black *.py
+```
+
+使用 [pylint](https://github.com/PyCQA/pylint) (lint)
+
+```bash
+# cheat
+echo "$(git diff --name-only --diff-filter=ACMR HEAD *.py)" | xargs pylint -sn
+
+# usage - never use, cause too many output
+pylint *.py
+```
+
+### pre-commit  
+  
+確認 pre-commit 是否已安裝至專案環境底下  
+  
+```bash  
+# check  
+pre-commit -V  
+  
+# install with requirements.txt  
+pip install -r requirements.txt  
+  
+# or directly install 
+pip install pre-commit  
+```  
+  
+將 pre-commit hook 安裝至專案裡的 .git/hooks 資料夾底下  
+  
+```bash  
+# init hook, will create .git/hooks/pre-commit  
+pre-commit install --install-hooks  
+```  
+  
+執行 git commit  
+  
+```bash  
+git commit -m 'feat: hello world'
+```  
+
+成功時畫面如下  
+  
+![succeful-pre-commit](https://i.imgur.com/1TNS07R.gif)  
+  
+失敗時，需要調整相對應的檔案，並重新將檔案加入 git 版控，再重新進行 commit  
+  
+![fail-pre-commit](https://i.imgur.com/Zo0RBxo.gif)
 
 ---
 
