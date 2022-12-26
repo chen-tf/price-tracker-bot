@@ -89,7 +89,16 @@ TELEGRAM_BOT_MODE = "polling"
 - 在專案資料夾內執行檔案
 
 ```bash
-python pt_scheduler.py
+python app.py
+```
+
+### Built-in commands on the newly-created channel
+```
+/my 顯示追蹤清單
+/clearall 清空全部追蹤清單
+/clear 刪除指定追蹤商品
+/add 後貼上momo商品連結可加入追蹤清單
+或是可以直接使用指令選單方便操作
 ```
 
 ## 更新
