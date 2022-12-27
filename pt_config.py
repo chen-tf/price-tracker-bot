@@ -1,3 +1,4 @@
+import logging
 import os
 
 from dotenv import load_dotenv
@@ -31,6 +32,9 @@ LINE_NOTIFY_CLIENT_ID = os.getenv('LINE_NOTIFY_CLIENT_ID')
 LINE_NOTIFY_CLIENT_SECRET = os.getenv('LINE_NOTIFY_CLIENT_SECRET')
 
 PORT = int(os.getenv('PORT', 8080))
+
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    level=LOGGING_LEVEL, force=True)
 
 
 def momo_good_url():

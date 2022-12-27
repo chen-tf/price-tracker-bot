@@ -1,0 +1,49 @@
+# fly-app-beta.toml file generated for price-tracker-beta on 2022-12-05T21:52:34+08:00
+
+app = "price-tracker-beta"
+kill_signal = "SIGINT"
+kill_timeout = 5
+processes = []
+
+[build]
+builder = "paketobuildpacks/builder:base"
+
+[env]
+PORT = "8080"
+
+[experimental]
+allowed_public_ports = []
+auto_rollback = true
+
+[processes]
+web = "gunicorn -c gun_config.py app:app"
+scheduler = "python pt_scheduler.py"
+
+[[services]]
+http_checks = []
+internal_port = 8080
+# Make sure there's only one `processes` entry under `[[services]]`
+# defined under [processes] will be exposed to the public internet
+processes = ["web"]
+protocol = "tcp"
+script_checks = []
+
+[services.concurrency]
+hard_limit = 25
+soft_limit = 20
+type = "connections"
+
+[[services.ports]]
+force_https = true
+handlers = ["http"]
+port = 80
+
+[[services.ports]]
+handlers = ["tls", "http"]
+port = 443
+
+[[services.tcp_checks]]
+grace_period = "1s"
+interval = "15s"
+restart_limit = 0
+timeout = "2s"
