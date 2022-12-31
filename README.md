@@ -9,17 +9,14 @@
 - [price-tracker-bot](#price-tracker-bot)
   - [目錄](#目錄)
   - [簡介](#簡介)
+    - [Demo Bot](#demo-bot)  
+  - [功能](#功能)
   - [如何在本機端使用](#如何在本機端使用)
     - [下載專案](#下載專案)
     - [建立 Python 環境](#建立-python-環境)
     - [建立 PostgreSQL](#建立-postgresql)
     - [建立 Telegram bot](#建立-telegram-bot)
     - [在本機端運行](#在本機端運行)
-  - [更新](#更新)
-      - [2022.11.12](#20221112)
-      - [2022.09.13](#20220913)
-  - [功能](#功能)
-  - [Demo Bot](#demo-bot)
   - [環境建置](#環境建置)
     - [database](#database)
     - [環境變數](#環境變數)
@@ -39,6 +36,25 @@
 
 price-tracker-bot is a telegram bot that can trace the price on [momoshop](https://www.momoshop.com.tw "momoshop").
 
+### Demo Bot
+
+Telegram bot search [@momo_price_tracker_bot](https://t.me/momo_price_tracker_bot)
+
+## 功能
+
+- LINE 通知服務<br>
+  ![LINE 通知服務](https://i.imgur.com/DF9lOUR.jpg)
+- 降價通知
+  ![降價通知](https://i.imgur.com/CSLhRGW.png)
+- 上架通知
+  ![上架通知](https://i.imgur.com/jmfC9aH.png)
+- 收藏商品
+  ![收藏商品](https://i.imgur.com/Ns9uGiA.png)
+- 清空已收藏商品
+  ![清空已收藏商品](https://i.imgur.com/kVwJVri.png)
+- 顯示目前已收藏商品
+  ![顯示目前已收藏商品](https://i.imgur.com/l8dgUpj.png)
+  
 ## 如何在本機端使用
 
 ### 下載專案
@@ -92,67 +108,19 @@ TELEGRAM_BOT_MODE = "polling"
 python app.py
 ```
 
-### Built-in commands on the newly-created channel
+### 新建立的Telegram聊天頻道中已有的內建指令
 ```
 /my 顯示追蹤清單
 /clearall 清空全部追蹤清單
 /clear 刪除指定追蹤商品
-/add 後貼上momo商品連結可加入追蹤清單
-或是可以直接使用指令選單方便操作
+/add 後貼上momo商品連結可加入追蹤清單或是可以直接使用指令選單方便操作
 ```
-
-## 更新
-
-#### 2022.11.12
-
-一個夜晚突然無聊，想到如果我在 telegram bot 上面做 LINE Notify 的綁定，是不是會很有趣呢
-
-- 新增 LINE 通知服務綁定 (目前 telegram bot 只能先支援 polling 的使用方式，為了要同時使用 flask web)
-
-outage
-
-- root case：同時間超過一個以上相同 telegram bot 使用 polling mode。
-- fix：分別 deploy (telegram bot, flask web)
-- impact：約莫早上五點至早上九點的降價服務倒站，既有資料不受影響，新資料都沒有建立成功。
-- 後續動作：主動發送 telegram message 說明現況，請用戶再嘗試操作。
-- 反思：恩...對，就是上面那個設定造成的，當初只是想要省錢不要開第二台機器，所以把對外的 port 讓給 LINE Notify
-  Webhook，telegram bot 使用的是 polling mode，在後面部署階段的時候因為上面root case所述，所以造成期間內的telegram bot回覆異常。
-
-#### 2022.09.13
-
-[平臺即服務Heroku將在今年終止免費服務](https://www.ithome.com.tw/news/152729)
-
-- 新增 fly.io 平台部署教學
-- 新增 Supabase Database 申請
-
----
-
-## 功能
-
-- LINE 通知服務
-  ![LINE 通知服務](https://i.imgur.com/DF9lOUR.jpg)
-- 降價通知
-  ![降價通知](https://i.imgur.com/CSLhRGW.png)
-- 上架通知
-  ![上架通知](https://i.imgur.com/jmfC9aH.png)
-- 收藏商品
-  ![收藏商品](https://i.imgur.com/Ns9uGiA.png)
-- 清空已收藏商品
-  ![清空已收藏商品](https://i.imgur.com/kVwJVri.png)
-- 顯示目前已收藏商品
-  ![顯示目前已收藏商品](https://i.imgur.com/l8dgUpj.png)
-
----
-
-## Demo Bot
-
-Telegram bot search [@momo_price_tracker_bot](https://t.me/momo_price_tracker_bot)
 
 ---
 
 ## 環境建置
 
-### database
+### Database
 
 - PostgreSQL 10<br>
 
