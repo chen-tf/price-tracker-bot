@@ -31,6 +31,9 @@
     - [Build simple local postgres env (optional)](#build-simple-local-postgres-env-optional)
   - [機器人指令](#機器人指令)
     - [Command menu](#command-menu)
+  - [如何貢獻](#如何貢獻)
+  - [貢獻作者](#貢獻作者)
+  - [授權條款](#授權條款)
 
 ## 簡介
 
@@ -299,3 +302,25 @@ You need to say these to @BotFather.
 
 Bot can show command menu
 ![](https://i.imgur.com/aEHJECc.png)
+
+## 如何貢獻
+
+歡迎所有貢獻、提交錯誤報告、協助錯誤修復、文檔改進、功能增強和提供你的想法。
+
+你可以移至"Issue"選項並開始查看你認為有趣的問題。文檔下列出了許多問題，您可以從這裡開始。
+
+或者，您有了自己的想法，或者正在程式碼中尋找某些東西並認為“這可以改進”……您可以為此做點什麼！
+
+作為本項目的貢獻者和維護者，您應該遵守 price-tracker-bot 的行為準則。
+
+## 貢獻作者
+* chen-tf
+* ken71301
+* PayonAbyss
+* s9891326
+* henry-on-the-internet
+* hokou
+* w305jack
+
+## 授權條款
+[MIT](https://github.com/henry-on-the-internet/price-tracker-bot/blob/main/license) 
