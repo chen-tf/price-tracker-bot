@@ -24,9 +24,6 @@
     - [Bot 接收訊息方式](#bot-接收訊息方式)
     - [fly.io](#flyio)
     - [Supabase (Free Postgres Online)](#supabase-free-postgres-online)
-    - [heroku (免費方案即將關閉，建議遷移至flyio)](#heroku-免費方案即將關閉建議遷移至flyio)
-  - [deploy](#deploy)
-    - [Heroku git deploy](#heroku-git-deploy)
   - [執行方式](#執行方式)
     - [Build simple local postgres env (optional)](#build-simple-local-postgres-env-optional)
   - [機器人指令](#機器人指令)
@@ -138,7 +135,7 @@ python app.py
 | DB_USER               | Database user                                                       |
 | DB_PASSWORD           | Database user's password                                            |
 | BOT_TOKEN             | Telegram bot token                                                  |
-| WEBHOOK_URL(Optional) | If you use Heroku url like this **https://{AppName}.herokuapp.com** |
+| WEBHOOK_URL(Optional) | For deploy your app to cloud provides |
 | PERIOD_HOUR                      | Resync latest good's price time period                                                                  |
 | TELEGRAM_BOT_MODE     | default: polling, [polling,webhook]                                 |
 
@@ -177,19 +174,6 @@ fire some kind of idle timer that runs a query at least once every 30 min, to ke
 
 - https://supabase.com/
 - [相關教學](https://flaviocopes.com/postgresql-supabase-setup/)
-
-### heroku (免費方案即將關閉，建議遷移至flyio)
-
-- [heroku application](https://devcenter.heroku.com/articles/creating-apps)
-- [Heroku Postgres](https://devcenter.heroku.com/articles/heroku-postgresql)
-- [Heroku config](https://devcenter.heroku.com/articles/config-vars) 設定heoku上環境變數
-- [建立Heroku Scheduler(Optional)](https://devcenter.heroku.com/articles/scheduler)
-
-如果是使用免費方案，服務太久沒有收到request，就會被暫時關閉，如果要長時間維持服務，需要定時發送一些request保持服務運作。
-Scheduler新增`curl --location --request GET 'https://{AppName}.herokuapp.com'`，把AppName替換成Heroku上建立的application
-name
-
-![預期中的Add-ons](https://i.imgur.com/s1Et0bz.png)
 
 ### Linter
 
@@ -264,14 +248,6 @@ git commit -m 'feat: hello world'
 失敗時，需要調整相對應的檔案，並重新將檔案加入 git 版控，再重新進行 commit  
   
 ![fail-pre-commit](https://i.imgur.com/Zo0RBxo.gif)
-
----
-
-## deploy
-
-### Heroku git deploy
-
-![](https://i.imgur.com/iqFrHLC.png)
 
 ---
 
