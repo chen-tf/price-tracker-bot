@@ -42,7 +42,7 @@ class User(Base):
     line_notify_token = db.Column(db.String, nullable=True)
 
     def __repr__(self):
-        return f"User<{self.id=}, {self.chat_id=}>"
+        return f"User<{self.id=}, {self.chat_id=}, {self.state=}>"
 
 
 class UserSubGood(Base):
