@@ -7,43 +7,40 @@ from repository.database import Session
 from repository.models import User, UserSubGood
 
 
-def auto_commit(func):
+def auto_close_or_rollback(func):
     @functools.wraps(func)
     def wrapper(*args):
-        db = Session()
+        session = Session()
         try:
-            result = func(*args, db=db)
-            # if insert、update and delete will commit the transaction
-            if db.new or db.dirty or db.deleted:
-                db.commit()
+            result = func(*args, session=session)
         except Exception:
-            db.rollback()
+            session.rollback()
             raise
         finally:
-            db.close()
+            session.close()
         return result
 
     return wrapper
 
 
-@auto_commit
+@auto_close_or_rollback
 def get_users(_skip: int = 0, _limit: int = 100, **kwargs) -> List[User]:
-    db = kwargs["db"]
-    return db.query(User).offset(_skip).limit(_limit).all()
+    session = kwargs["session"]
+    return session.query(User).offset(_skip).limit(_limit).all()
 
 
-@auto_commit
+@auto_close_or_rollback
 def upsert_user(user_id: str, chat_id: str, **kwargs):
-    db = kwargs["db"]
+    session = kwargs["session"]
     data = User(id=user_id, chat_id=chat_id, state=1)
-    db.merge(data)
+    session.merge(data)
 
 
-@auto_commit
+@auto_close_or_rollback
 def find_user_by_good_id(good_id: str, **kwargs):
-    db = kwargs["db"]
+    session = kwargs["session"]
     return (
-        db.query(User.chat_id)
+        session.query(User.chat_id)
         .join(UserSubGood, and_(User.id == UserSubGood.user_id, User.state == 1))
         .filter(UserSubGood.good_id == good_id)
         .all()
