@@ -290,13 +290,9 @@ Bot can show command menu
 作為本項目的貢獻者和維護者，您應該遵守 price-tracker-bot 的行為準則。
 
 ## 貢獻作者
-* chen-tf
-* ken71301
-* PayonAbyss
-* s9891326
-* henry-on-the-internet
-* hokou
-* w305jack
+<a href = "https://github.com/chen-tf/price-tracker-bot/graphs/contributors">
+  <img src = "https://contrib.rocks/image?repo=chen-tf/price-tracker-bot"/>
+</a>
 
 ## 授權條款
 [MIT](https://github.com/henry-on-the-internet/price-tracker-bot/blob/main/license) 
