@@ -9,17 +9,14 @@
 - [price-tracker-bot](#price-tracker-bot)
   - [目錄](#目錄)
   - [簡介](#簡介)
+    - [Demo Bot](#demo-bot)  
+  - [功能](#功能)
   - [如何在本機端使用](#如何在本機端使用)
     - [下載專案](#下載專案)
     - [建立 Python 環境](#建立-python-環境)
     - [建立 PostgreSQL](#建立-postgresql)
     - [建立 Telegram bot](#建立-telegram-bot)
     - [在本機端運行](#在本機端運行)
-  - [更新](#更新)
-      - [2022.11.12](#20221112)
-      - [2022.09.13](#20220913)
-  - [功能](#功能)
-  - [Demo Bot](#demo-bot)
   - [環境建置](#環境建置)
     - [database](#database)
     - [環境變數](#環境變數)
@@ -27,18 +24,37 @@
     - [Bot 接收訊息方式](#bot-接收訊息方式)
     - [fly.io](#flyio)
     - [Supabase (Free Postgres Online)](#supabase-free-postgres-online)
-    - [heroku (免費方案即將關閉，建議遷移至flyio)](#heroku-免費方案即將關閉建議遷移至flyio)
-  - [deploy](#deploy)
-    - [Heroku git deploy](#heroku-git-deploy)
   - [執行方式](#執行方式)
     - [Build simple local postgres env (optional)](#build-simple-local-postgres-env-optional)
   - [機器人指令](#機器人指令)
     - [Command menu](#command-menu)
+  - [如何貢獻](#如何貢獻)
+  - [貢獻作者](#貢獻作者)
+  - [授權條款](#授權條款)
 
 ## 簡介
 
 price-tracker-bot is a telegram bot that can trace the price on [momoshop](https://www.momoshop.com.tw "momoshop").
 
+### Demo Bot
+
+Telegram bot search [@momo_price_tracker_bot](https://t.me/momo_price_tracker_bot)
+
+## 功能
+
+- LINE 通知服務<br>
+  ![LINE 通知服務](https://i.imgur.com/DF9lOUR.jpg)
+- 降價通知
+  ![降價通知](https://i.imgur.com/CSLhRGW.png)
+- 上架通知
+  ![上架通知](https://i.imgur.com/jmfC9aH.png)
+- 收藏商品
+  ![收藏商品](https://i.imgur.com/Ns9uGiA.png)
+- 清空已收藏商品
+  ![清空已收藏商品](https://i.imgur.com/kVwJVri.png)
+- 顯示目前已收藏商品
+  ![顯示目前已收藏商品](https://i.imgur.com/l8dgUpj.png)
+  
 ## 如何在本機端使用
 
 ### 下載專案
@@ -92,67 +108,19 @@ TELEGRAM_BOT_MODE = "polling"
 python app.py
 ```
 
-### Built-in commands on the newly-created channel
+### 新建立的Telegram聊天頻道中已有的內建指令
 ```
 /my 顯示追蹤清單
 /clearall 清空全部追蹤清單
 /clear 刪除指定追蹤商品
-/add 後貼上momo商品連結可加入追蹤清單
-或是可以直接使用指令選單方便操作
+/add 後貼上momo商品連結可加入追蹤清單或是可以直接使用指令選單方便操作
 ```
-
-## 更新
-
-#### 2022.11.12
-
-一個夜晚突然無聊，想到如果我在 telegram bot 上面做 LINE Notify 的綁定，是不是會很有趣呢
-
-- 新增 LINE 通知服務綁定 (目前 telegram bot 只能先支援 polling 的使用方式，為了要同時使用 flask web)
-
-outage
-
-- root case：同時間超過一個以上相同 telegram bot 使用 polling mode。
-- fix：分別 deploy (telegram bot, flask web)
-- impact：約莫早上五點至早上九點的降價服務倒站，既有資料不受影響，新資料都沒有建立成功。
-- 後續動作：主動發送 telegram message 說明現況，請用戶再嘗試操作。
-- 反思：恩...對，就是上面那個設定造成的，當初只是想要省錢不要開第二台機器，所以把對外的 port 讓給 LINE Notify
-  Webhook，telegram bot 使用的是 polling mode，在後面部署階段的時候因為上面root case所述，所以造成期間內的telegram bot回覆異常。
-
-#### 2022.09.13
-
-[平臺即服務Heroku將在今年終止免費服務](https://www.ithome.com.tw/news/152729)
-
-- 新增 fly.io 平台部署教學
-- 新增 Supabase Database 申請
-
----
-
-## 功能
-
-- LINE 通知服務
-  ![LINE 通知服務](https://i.imgur.com/DF9lOUR.jpg)
-- 降價通知
-  ![降價通知](https://i.imgur.com/CSLhRGW.png)
-- 上架通知
-  ![上架通知](https://i.imgur.com/jmfC9aH.png)
-- 收藏商品
-  ![收藏商品](https://i.imgur.com/Ns9uGiA.png)
-- 清空已收藏商品
-  ![清空已收藏商品](https://i.imgur.com/kVwJVri.png)
-- 顯示目前已收藏商品
-  ![顯示目前已收藏商品](https://i.imgur.com/l8dgUpj.png)
-
----
-
-## Demo Bot
-
-Telegram bot search [@momo_price_tracker_bot](https://t.me/momo_price_tracker_bot)
 
 ---
 
 ## 環境建置
 
-### database
+### Database
 
 - PostgreSQL 10<br>
 
@@ -167,7 +135,7 @@ Telegram bot search [@momo_price_tracker_bot](https://t.me/momo_price_tracker_bo
 | DB_USER               | Database user                                                       |
 | DB_PASSWORD           | Database user's password                                            |
 | BOT_TOKEN             | Telegram bot token                                                  |
-| WEBHOOK_URL(Optional) | If you use Heroku url like this **https://{AppName}.herokuapp.com** |
+| WEBHOOK_URL(Optional) | For deploy your app to cloud provides |
 | PERIOD_HOUR                      | Resync latest good's price time period                                                                  |
 | TELEGRAM_BOT_MODE     | default: polling, [polling,webhook]                                 |
 
@@ -206,19 +174,6 @@ fire some kind of idle timer that runs a query at least once every 30 min, to ke
 
 - https://supabase.com/
 - [相關教學](https://flaviocopes.com/postgresql-supabase-setup/)
-
-### heroku (免費方案即將關閉，建議遷移至flyio)
-
-- [heroku application](https://devcenter.heroku.com/articles/creating-apps)
-- [Heroku Postgres](https://devcenter.heroku.com/articles/heroku-postgresql)
-- [Heroku config](https://devcenter.heroku.com/articles/config-vars) 設定heoku上環境變數
-- [建立Heroku Scheduler(Optional)](https://devcenter.heroku.com/articles/scheduler)
-
-如果是使用免費方案，服務太久沒有收到request，就會被暫時關閉，如果要長時間維持服務，需要定時發送一些request保持服務運作。
-Scheduler新增`curl --location --request GET 'https://{AppName}.herokuapp.com'`，把AppName替換成Heroku上建立的application
-name
-
-![預期中的Add-ons](https://i.imgur.com/s1Et0bz.png)
 
 ### Linter
 
@@ -296,14 +251,6 @@ git commit -m 'feat: hello world'
 
 ---
 
-## deploy
-
-### Heroku git deploy
-
-![](https://i.imgur.com/iqFrHLC.png)
-
----
-
 ## 執行方式
 
 `python3 App.py`
@@ -331,3 +278,21 @@ You need to say these to @BotFather.
 
 Bot can show command menu
 ![](https://i.imgur.com/aEHJECc.png)
+
+## 如何貢獻
+
+歡迎所有貢獻、提交錯誤報告、協助錯誤修復、文檔改進、功能增強和提供你的想法。
+
+你可以移至"Issue"選項並開始查看你認為有趣的問題。文檔下列出了許多問題，您可以從這裡開始。
+
+或者，您有了自己的想法，或者正在程式碼中尋找某些東西並認為“這可以改進”……您可以為此做點什麼！
+
+作為本項目的貢獻者和維護者，您應該遵守 price-tracker-bot 的行為準則。
+
+## 貢獻作者
+<a href = "https://github.com/chen-tf/price-tracker-bot/graphs/contributors">
+  <img src = "https://contrib.rocks/image?repo=chen-tf/price-tracker-bot"/>
+</a>
+
+## 授權條款
+[MIT](https://github.com/henry-on-the-internet/price-tracker-bot/blob/main/license) 
