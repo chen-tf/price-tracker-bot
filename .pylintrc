@@ -180,6 +180,7 @@ good-names=i,
            k,
            ex,
            Run,
+           db,
            _
 
 # Good variable names regexes, separated by a comma. If names match any regex,
@@ -425,7 +426,8 @@ disable=raw-checker-failed,
         too-many-locals,
         broad-except,
         bare-except,
-        raise-missing-from
+        raise-missing-from,
+        import-outside-toplevel,
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
