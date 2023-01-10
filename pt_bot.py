@@ -5,8 +5,13 @@ import re
 import requests
 import telegram
 from telegram import ChatAction
-from telegram.ext import (CommandHandler, ConversationHandler, Filters,
-                          MessageHandler, Updater)
+from telegram.ext import (
+    CommandHandler,
+    ConversationHandler,
+    Filters,
+    MessageHandler,
+    Updater,
+)
 
 import pt_config
 import pt_error
