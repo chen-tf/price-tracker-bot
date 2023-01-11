@@ -22,9 +22,7 @@ def find_good_info(good_id=None, session=requests.Session()):
             raise pt_error.GoodNotExist
         good_name = soup.find("meta", property="og:title")["content"]
         logger.info("good_name %s", good_name)
-        price = _format_price(
-            soup.find("meta", property="product:price:amount")["content"]
-        )
+        price = _format_price(soup.find("meta", property="product:price:amount")["content"])
         logger.info("price %s", price)
         stock_state = soup.find("meta", property="product:availability")["content"]
         if stock_state == "in stock":
@@ -36,13 +34,9 @@ def find_good_info(good_id=None, session=requests.Session()):
         logger.warning("Good not exist. id:%s", good_id)
         raise e
     except Exception as e:
-        logger.error(
-            "Parse good_info and catch an exception. good_id:%s", good_id, exc_info=True
-        )
+        logger.error("Parse good_info and catch an exception. good_id:%s", good_id, exc_info=True)
         raise pt_error.CrawlerParseError
-    return GoodInfo(
-        good_id=good_id, name=good_name, price=price, stock_state=stock_state
-    )
+    return GoodInfo(good_id=good_id, name=good_name, price=price, stock_state=stock_state)
 
 
 def _format_price(price):

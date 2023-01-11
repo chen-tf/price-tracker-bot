@@ -11,9 +11,7 @@ TELEGRAM_BOT_MODE = os.getenv("TELEGRAM_BOT_MODE", "polling")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 MOMO_URL = "https://m.momoshop.com.tw/"
 MOMO_GOOD_URI = "goods.momo"
-USER_AGENT = (
-    "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:90.0) Gecko/20100101 Firefox/90.0"
-)
+USER_AGENT = "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:90.0) Gecko/20100101 Firefox/90.0"
 
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 

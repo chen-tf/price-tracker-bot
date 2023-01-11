@@ -69,22 +69,22 @@ def add_user_good_info(user_good_info):
                 total_size = cursor.fetchone()[0]
                 if total_size >= pt_config.USER_SUB_GOOD_LIMITED:
                     raise pt_error.ExceedLimitedSizeError
-                else:
-                    sql = """INSERT INTO public.user_sub_good
-                    (id, user_id, good_id, price, is_notified, state)
-                    VALUES(%s, %s, %s, %s, false, 1)
-                    ON CONFLICT(user_id, good_id) DO UPDATE
-                    SET price = EXCLUDED.price, is_notified = EXCLUDED.is_notified, state = EXCLUDED.state;
-                    """
-                    cursor.execute(
-                        sql,
-                        (
-                            uuid.uuid4(),
-                            user_good_info.user_id,
-                            user_good_info.good_id,
-                            user_good_info.original_price,
-                        ),
-                    )
+
+                sql = """INSERT INTO public.user_sub_good
+                (id, user_id, good_id, price, is_notified, state)
+                VALUES(%s, %s, %s, %s, false, 1)
+                ON CONFLICT(user_id, good_id) DO UPDATE
+                SET price = EXCLUDED.price, is_notified = EXCLUDED.is_notified, state = EXCLUDED.state;
+                """
+                cursor.execute(
+                    sql,
+                    (
+                        uuid.uuid4(),
+                        user_good_info.user_id,
+                        user_good_info.good_id,
+                        user_good_info.original_price,
+                    ),
+                )
     finally:
         pool.putconn(conn)
 
@@ -237,9 +237,7 @@ def clear(user_id, good_name):
                 all_results = cursor.fetchall()
                 if good_name is not None:
                     user_good_ids = tuple(
-                        str(result[0])
-                        for result in all_results
-                        if good_name in str(result[1])
+                        str(result[0]) for result in all_results if good_name in str(result[1])
                     )
                 else:
                     user_good_ids = tuple(str(result[0]) for result in all_results)
@@ -252,9 +250,7 @@ def clear(user_id, good_name):
                 cursor.execute(sql, (user_good_ids,))
     finally:
         pool.putconn(conn)
-    return list(
-        str(result[1]) for result in all_results if str(result[0]) in user_good_ids
-    )
+    return list(str(result[1]) for result in all_results if str(result[0]) in user_good_ids)
 
 
 def update_good_stock_state(good_id, state):
