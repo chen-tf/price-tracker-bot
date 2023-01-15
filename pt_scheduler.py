@@ -8,11 +8,11 @@ import pt_config
 import pt_scheduler
 import pt_service
 
-logger = logging.getLogger('Scheduler')
+logger = logging.getLogger("Scheduler")
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     threading.Thread(target=pt_scheduler.my_job).start()
-    logger.info('Momo price tracker scheduler started.')
+    logger.info("Momo price tracker scheduler started.")
 
 
 def my_job():

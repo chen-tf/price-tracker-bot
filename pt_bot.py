@@ -5,8 +5,13 @@ import re
 import requests
 import telegram
 from telegram import ChatAction
-from telegram.ext import (CommandHandler, ConversationHandler, Filters,
-                          MessageHandler, Updater)
+from telegram.ext import (
+    CommandHandler,
+    ConversationHandler,
+    Filters,
+    MessageHandler,
+    Updater,
+)
 
 import pt_config
 import pt_error
@@ -121,10 +126,7 @@ def add_good(update, context):
             raise pt_error.NotValidMomoURL
 
         # Check the number of user sub goods
-        if (
-            pt_service.count_user_good_info_sum(user_id)
-            >= pt_config.USER_SUB_GOOD_LIMITED
-        ):
+        if pt_service.count_user_good_info_sum(user_id) >= pt_config.USER_SUB_GOOD_LIMITED:
             raise pt_error.ExceedLimitedSizeError
 
         good_id = str(query["i_code"][0])
@@ -144,9 +146,7 @@ def add_good(update, context):
         msg = f"成功新增\n商品名稱:{good_info.name}\n價格:{good_info.price}\n狀態:{stock_state_string}"
         context.bot.send_message(chat_id=update.effective_chat.id, text=msg)
     except pt_error.GoodNotExist:
-        context.bot.send_message(
-            chat_id=update.effective_chat.id, text="商品目前無展售或是網頁不存在"
-        )
+        context.bot.send_message(chat_id=update.effective_chat.id, text="商品目前無展售或是網頁不存在")
     except pt_error.CrawlerParseError:
         context.bot.send_message(chat_id=update.effective_chat.id, text="商品頁面解析失敗")
     except pt_error.ExceedLimitedSizeError:
@@ -245,6 +245,4 @@ _register_bot_command_handler()
 if pt_config.TELEGRAM_BOT_MODE == "polling":
     telegram_updater.start_polling()
 else:
-    telegram_updater.bot.setWebhook(
-        url=pt_config.WEBHOOK_URL + "webhook/" + pt_config.BOT_TOKEN
-    )
+    telegram_updater.bot.setWebhook(url=pt_config.WEBHOOK_URL + "webhook/" + pt_config.BOT_TOKEN)

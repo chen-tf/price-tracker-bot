@@ -9,4 +9,3 @@ def test_sample():
 
     # step3. assert
     assert isinstance(lotify_client, object)
-

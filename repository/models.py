@@ -16,9 +16,7 @@ class GoodInfo(Base):
     create_time = db.Column(db.DateTime, server_default=func.now())
     update_time = db.Column(db.DateTime, onupdate=func.now())
     checksum = db.Column(db.String(16), nullable=True)
-    stock_state = db.Column(
-        db.Integer, default=1, comment="0: out of stock\n1: in stock"
-    )
+    stock_state = db.Column(db.Integer, default=1, comment="0: out of stock\n1: in stock")
     state = db.Column(db.Integer, default=1)
 
     def __repr__(self):

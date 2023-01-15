@@ -7,7 +7,14 @@ class UserGoodInfo:
     STATE_DISABLE = 0
     STATE_ENABLE = 1
 
-    def __init__(self, user_id: str, chat_id: str, good_id: str, original_price: int, is_notified: bool) -> None:
+    def __init__(
+        self,
+        user_id: str,
+        chat_id: str,
+        good_id: str,
+        original_price: int,
+        is_notified: bool,
+    ) -> None:
         self.user_id = user_id
         self.chat_id = chat_id
         self.good_id = good_id

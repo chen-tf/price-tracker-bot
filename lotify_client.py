@@ -5,7 +5,7 @@ import pt_config
 client = Client(
     client_id=pt_config.LINE_NOTIFY_CLIENT_ID,
     client_secret=pt_config.LINE_NOTIFY_CLIENT_SECRET,
-    redirect_uri=pt_config.LINE_NOTIFY_REDIRECT_URL
+    redirect_uri=pt_config.LINE_NOTIFY_REDIRECT_URL,
 )
 
 
