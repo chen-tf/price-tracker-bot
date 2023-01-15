@@ -295,4 +295,4 @@ Bot can show command menu
 </a>
 
 ## 授權條款
-[MIT](https://github.com/henry-on-the-internet/price-tracker-bot/blob/main/license) 
+[MIT](https://github.com/chen-tf/price-tracker-bot/blob/main/LICENSE) 
