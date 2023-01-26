@@ -76,7 +76,7 @@ git clone https://github.com/chen-tf/price-tracker-bot.git
 
 - 安裝 Docker
   - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- 安裝 PostgreSQL 環境
+- 安裝 PostgreSQL 環境 
   - 在專案資料夾內，執行 `docker-compose up`，創建並啟動 PostgreSQL 環境
 
 ### 建立 Telegram bot
@@ -248,18 +248,6 @@ git commit -m 'feat: hello world'
 失敗時，需要調整相對應的檔案，並重新將檔案加入 git 版控，再重新進行 commit  
   
 ![fail-pre-commit](https://i.imgur.com/Zo0RBxo.gif)
-
----
-
-## 執行方式
-
-`python3 App.py`
-
-### Build simple local postgres env (optional)
-
-```
-docker run -d -p 5432:5432 --name mypostgres --restart always -v postgresql-data:/var/lib/postgresql/data -e POSTGRES_PASSWORD=1234 -d postgres:10.17-alpine3.14
-```
 
 ---
 
