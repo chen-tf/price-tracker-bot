@@ -5,7 +5,7 @@ from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
 from repository.database import SessionLocal
-from repository.models import User, UserSubGood
+from repository.models import User, UserSubGood, GoodInfo
 
 
 def auto_commit(func):
@@ -50,6 +50,18 @@ def find_user_by_good_id(good_id: str, **kwargs):
         .filter(UserSubGood.good_id == good_id)
         .all()
     )
+
+
+@auto_commit
+def add_good_info(good_info, **kwargs):
+    session: Session = kwargs["session"]
+    data = GoodInfo(
+        id=good_info.good_id,
+        name=good_info.name,
+        price=good_info.price,
+        stock_state=good_info.stock_state,
+    )
+    session.add(data)
 
 
 # @auto_commit

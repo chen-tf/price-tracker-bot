@@ -33,7 +33,7 @@ def _price_sync_handler(good_info):
             logger.debug("%s not exist", good_id)
             return
         new_good_info = pt_momo.find_good_info(good_id=good_id)
-        pt_repository.add_good_info(new_good_info)
+        repository.add_good_info(new_good_info)
         cheaper_records = []
         if new_good_info.price != good_info.price:
             pt_repository.reset_higher_user_sub(good_id)
@@ -122,7 +122,7 @@ def get_good_info(good_id):
 
 
 def add_good_info(good_info):
-    return pt_repository.add_good_info(good_info)
+    return repository.add_good_info(good_info)
 
 
 def add_user_good_info(user_good_info):
