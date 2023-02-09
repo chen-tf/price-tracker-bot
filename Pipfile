@@ -24,7 +24,7 @@ coverage = "~=7.0.3"
 gunicorn = "~=20.1.0"
 pylint = "~=2.15.5"
 isort = "~=5.12.0"
-black = "~=22.12.0"
+black = "~=23.1.0"
 pre-commit = "~=2.21.0"
 sqlalchemy = "~=1.4.45"
 
