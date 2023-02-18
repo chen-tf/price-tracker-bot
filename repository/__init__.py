@@ -5,7 +5,7 @@ from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from repository.database import SessionLocal
-from repository.models import User, UserSubGood, GoodInfo, UserSubGoodState, UserState
+from repository.models import User, UserSubGood, GoodInfo, UserSubGoodState, UserState, GoodInfoState
 
 
 def auto_flush(func):
@@ -50,6 +50,7 @@ def add_good_info(good_info, **kwargs):
         name=good_info.name,
         price=good_info.price,
         stock_state=good_info.stock_state,
+        state=GoodInfoState.ENABLE
     )
     session.merge(data)
 
