@@ -61,7 +61,7 @@ def add_good_info(good_info, **kwargs):
         price=good_info.price,
         stock_state=good_info.stock_state,
     )
-    session.add(data)
+    session.merge(data)
 
 
 # @auto_commit
