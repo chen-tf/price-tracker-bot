@@ -89,28 +89,6 @@ def add_user_good_info(user_good_info):
         pool.putconn(conn)
 
 
-def add_good_info(good_info):
-    conn = pool.getconn()
-    try:
-        with conn:
-            with conn.cursor() as cursor:
-                sql = """INSERT INTO good_info (id, name, price, stock_state,state) VALUES(%s, %s, %s, %s, 1) 
-                ON CONFLICT(id) DO UPDATE
-                SET name = EXCLUDED.name, price = EXCLUDED.price, stock_state = EXCLUDED.stock_state;
-                """
-                cursor.execute(
-                    sql,
-                    (
-                        good_info.good_id,
-                        good_info.name,
-                        good_info.price,
-                        good_info.stock_state,
-                    ),
-                )
-    finally:
-        pool.putconn(conn)
-
-
 def find_all_good(handler):
     conn = pool.getconn()
     try:
