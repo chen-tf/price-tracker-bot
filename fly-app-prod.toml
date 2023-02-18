@@ -16,7 +16,7 @@ allowed_public_ports = []
 auto_rollback = true
 
 [processes]
-web = "gunicorn -c gun_config.py app:app"
+app = "gunicorn -c gun_config.py app:app"
 scheduler = "python pt_scheduler.py"
 
 [[services]]
