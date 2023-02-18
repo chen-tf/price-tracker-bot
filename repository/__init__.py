@@ -35,9 +35,9 @@ def upsert_user(user_id: str, chat_id: str, **kwargs):
 def update_user_line_token(user_id: str, line_token: str, **kwargs):
     session: Session = kwargs["session"]
     statement = (
-        update(User).
-        where(User.id == user_id).
-        values(line_notify_token=line_token)
+        update(User)
+        .where(User.id == user_id)
+        .values(line_notify_token=line_token)
     )
     session.execute(statement=statement)
 
@@ -71,5 +71,18 @@ def find_user_sub_goods(user_id: str, **kwargs) -> List[UserSubGood]:
     return (
         session.query(UserSubGood)
         .filter(UserSubGood.user_id == user_id)
+        .filter(UserSubGood.state == 1)
         .all()
     )
+
+
+@auto_flush
+def user_unsubscribe_goods(user_sub_goods: List[UserSubGood], **kwargs):
+    session: Session = kwargs["session"]
+    sub_good_ids = [user_sub_good.id for user_sub_good in user_sub_goods]
+    statement = (
+        update(UserSubGood)
+        .where(UserSubGood.id.in_(sub_good_ids))
+        .values(state=0)
+    )
+    session.execute(statement=statement)

@@ -108,7 +108,16 @@ def find_user_sub_goods(user_id) -> List[UserSubGood]:
 
 
 def clear(user_id, good_name):
-    return pt_repository.clear(user_id, good_name)
+    user_sub_goods = repository.find_user_sub_goods(user_id)
+    if good_name is not None:
+        user_sub_goods = [user_sub_good for user_sub_good in user_sub_goods if
+                          good_name in user_sub_good.good_info.name]
+
+    if len(user_sub_goods) == 0:
+        return []
+
+    repository.user_unsubscribe_goods(user_sub_goods)
+    return [user_sub_good.good_info.name for user_sub_good in user_sub_goods]
 
 
 def count_user_good_info_sum(user_id):

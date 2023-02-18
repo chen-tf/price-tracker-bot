@@ -180,35 +180,6 @@ def find_user_sub_goods(user_id):
     return all_results
 
 
-def clear(user_id, good_name):
-    conn = pool.getconn()
-    try:
-        with conn:
-            with conn.cursor() as cursor:
-                query_user_good_sql = """select usg.id,gi."name" from user_sub_good usg 
-                join good_info gi on usg.good_id = gi.id
-                where usg.state = 1 and usg.user_id = %s;
-                """
-                cursor.execute(query_user_good_sql, (user_id,))
-                all_results = cursor.fetchall()
-                if good_name is not None:
-                    user_good_ids = tuple(
-                        str(result[0]) for result in all_results if good_name in str(result[1])
-                    )
-                else:
-                    user_good_ids = tuple(str(result[0]) for result in all_results)
-                if len(user_good_ids) == 0:
-                    return []
-                sql = """UPDATE public.user_sub_good 
-                set state = 0
-                WHERE id in %s;
-                """
-                cursor.execute(sql, (user_good_ids,))
-    finally:
-        pool.putconn(conn)
-    return list(str(result[1]) for result in all_results if str(result[0]) in user_good_ids)
-
-
 def update_good_stock_state(good_id, state):
     conn = pool.getconn()
     try:
