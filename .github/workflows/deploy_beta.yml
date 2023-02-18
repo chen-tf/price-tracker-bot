@@ -1,4 +1,4 @@
-name: Beta_CD
+name: deploy-beta
 
 on:
   push:
