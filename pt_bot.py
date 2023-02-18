@@ -1,3 +1,4 @@
+import inspect
 import logging
 import os
 import re
@@ -167,23 +168,27 @@ def add_good(update, context):
 
 def my_good(update, context):
     user_id = str(update.message.from_user.id)
-    my_goods = pt_service.find_user_sub_goods(user_id)
-    if len(my_goods) == 0:
+    user_sub_goods = pt_service.find_user_sub_goods(user_id)
+    if len(user_sub_goods) == 0:
         context.bot.send_message(chat_id=update.effective_chat.id, text="尚未追蹤商品")
         return
-    msg = "====\n商品名稱:%s\n追蹤價格:%s\n狀態:%s\n%s\n====\n"
     msgs = "追蹤清單\n"
-    for good in my_goods:
-        good = list(good)
+    for user_sub_good in user_sub_goods:
         stock_state_string = "可購買"
-        if good[2] == GoodInfo.STOCK_STATE_OUT_OF_STOCK:
+        if user_sub_good.state == GoodInfo.STOCK_STATE_OUT_OF_STOCK:
             stock_state_string = "缺貨中，請等待上架後通知"
-        elif good[2] == GoodInfo.STOCK_STATE_NOT_EXIST:
+        elif user_sub_good.state == GoodInfo.STOCK_STATE_NOT_EXIST:
             stock_state_string = "商品目前無展售或是網頁不存在"
-        good[2] = stock_state_string
-        good_id = good[3]
-        good[3] = pt_momo.generate_momo_url_by_good_id(good_id)
-        msgs = msgs + (msg % tuple(good))
+        good_url = pt_momo.generate_momo_url_by_good_id(user_sub_good.good_id)
+        msg = f'''
+        ====
+        商品名稱:{user_sub_good.good_info.name}
+        追蹤價格:{user_sub_good.price}
+        狀態:{stock_state_string}
+        {good_url}
+        ====
+        '''
+        msgs = msgs + inspect.cleandoc(msg)
     context.bot.send_message(chat_id=update.effective_chat.id, text=msgs)
 
 

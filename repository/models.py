@@ -3,6 +3,7 @@ import uuid
 import sqlalchemy as db
 from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 
 from repository.database import Base
 
@@ -58,6 +59,7 @@ class UserSubGood(Base):
     update_time = db.Column(db.DateTime, onupdate=func.now())
     is_notified = db.Column(db.Boolean, default=False)
     state = db.Column(db.Integer, default=1, comment="0: disable\n1: enable")
+    good_info = relationship('GoodInfo', backref='user_sub_goods', foreign_keys=[good_id], lazy="joined")
 
     def __repr__(self):
         return f"UserSubGood<{self.id=}, {self.price=}>"

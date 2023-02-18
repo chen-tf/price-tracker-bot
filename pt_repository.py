@@ -22,28 +22,6 @@ def _execute(sql: str, parameters: tuple, handler: callable = None):
         pool.putconn(conn)
 
 
-def update_user_line_token(user_id, line_notify_token):
-    sql = """update "user" set line_notify_token=%s where id=%s;
-            """
-    _execute(sql=sql, parameters=(line_notify_token, user_id))
-
-
-def upsert_user(user_id, chat_id):
-    conn = pool.getconn()
-    try:
-        with conn:
-            with conn.cursor() as cursor:
-                sql = """INSERT INTO public."user"
-                (id, chat_id, state)
-                VALUES(%s, %s, 1)
-                ON CONFLICT(id) DO UPDATE
-                SET chat_id = EXCLUDED.chat_id, state = EXCLUDED.state;
-                """
-                cursor.execute(sql, (user_id, chat_id))
-    finally:
-        pool.putconn(conn)
-
-
 def count_user_good_info_sum(user_id):
     sql = "select count(1) from user_sub_good where user_id=%s and state = 1"
     return _execute(

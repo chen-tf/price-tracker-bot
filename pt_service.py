@@ -1,5 +1,6 @@
 # coding: utf-8
 import logging
+from typing import List
 
 import pt_error
 import pt_momo
@@ -8,6 +9,7 @@ import repository
 from lotify_client import get_lotify_client
 from pt_entity import GoodInfo
 from pt_momo import generate_momo_url_by_good_id
+from repository import UserSubGood
 
 logger = logging.getLogger("Service")
 lotify_client = get_lotify_client()
@@ -64,8 +66,8 @@ def _price_sync_handler(good_info):
 
         # Notify if good's stock change
         if (
-            new_good_info.stock_state == GoodInfo.STOCK_STATE_IN_STOCK
-            and good_info.stock_state == GoodInfo.STOCK_STATE_OUT_OF_STOCK
+                new_good_info.stock_state == GoodInfo.STOCK_STATE_IN_STOCK
+                and good_info.stock_state == GoodInfo.STOCK_STATE_OUT_OF_STOCK
         ):
             logger.info("%s is in stock!", new_good_info.name)
             follow_good_chat_ids = pt_repository.find_user_by_good_id(good_id)
@@ -98,11 +100,11 @@ def _disable_not_active_user_sub_good_handler(record):
 
 
 def update_user_line_token(user_id, line_notify_token):
-    return pt_repository.update_user_line_token(user_id, line_notify_token)
+    return repository.update_user_line_token(user_id, line_notify_token)
 
 
-def find_user_sub_goods(user_id):
-    return pt_repository.find_user_sub_goods(user_id)
+def find_user_sub_goods(user_id) -> List[UserSubGood]:
+    return repository.find_user_sub_goods(user_id)
 
 
 def clear(user_id, good_name):

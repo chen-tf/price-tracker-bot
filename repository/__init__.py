@@ -1,14 +1,14 @@
 import functools
 from typing import List
 
-from sqlalchemy import and_
+from sqlalchemy import and_, update
 from sqlalchemy.orm import Session
 
 from repository.database import SessionLocal
 from repository.models import User, UserSubGood, GoodInfo
 
 
-def auto_commit(func):
+def auto_flush(func):
     @functools.wraps(func)
     def wrapper(*args):
         session: Session = SessionLocal()
@@ -16,10 +16,7 @@ def auto_commit(func):
             result = func(*args, session=session)
             # if insert、update and delete will commit the transaction
             if session.new or session.dirty or session.deleted:
-                session.commit()
-        except Exception:
-            session.rollback()
-            raise
+                session.flush()
         finally:
             session.close()
         return result
@@ -27,21 +24,25 @@ def auto_commit(func):
     return wrapper
 
 
-@auto_commit
-def get_users(_skip: int = 0, _limit: int = 100, **kwargs) -> List[User]:
-    session: Session = kwargs["session"]
-    return session.query(User).offset(_skip).limit(_limit).all()
-
-
-@auto_commit
+@auto_flush
 def upsert_user(user_id: str, chat_id: str, **kwargs):
     session: Session = kwargs["session"]
     data = User(id=user_id, chat_id=chat_id, state=1)
     session.merge(data)
-    session.commit()
 
 
-@auto_commit
+@auto_flush
+def update_user_line_token(user_id: str, line_token: str, **kwargs):
+    session: Session = kwargs["session"]
+    statement = (
+        update(User).
+        where(User.id == user_id).
+        values(line_notify_token=line_token)
+    )
+    session.execute(statement=statement)
+
+
+@auto_flush
 def find_user_by_good_id(good_id: str, **kwargs):
     session: Session = kwargs["session"]
     return (
@@ -52,7 +53,7 @@ def find_user_by_good_id(good_id: str, **kwargs):
     )
 
 
-@auto_commit
+@auto_flush
 def add_good_info(good_info, **kwargs):
     session: Session = kwargs["session"]
     data = GoodInfo(
@@ -64,22 +65,11 @@ def add_good_info(good_info, **kwargs):
     session.merge(data)
 
 
-# @auto_commit
-# def insert_user(**kwargs):
-#     session: Session = kwargs["session"]
-#     data = User(id="1234", chat_id="12", state=1)
-#     session.add(data)
-#
-#
-# @auto_commit
-# def update_user(**kwargs):
-#     session: Session = kwargs["session"]
-#     user = session.query(User).filter(User.id == "1234").first()
-#     user.state = 0
-#
-#
-# @auto_commit
-# def delete_user(**kwargs):
-#     session: Session = kwargs["session"]
-#     user = session.query(User).filter(User.id == "1234").first()
-#     session.delete(user)
+@auto_flush
+def find_user_sub_goods(user_id: str, **kwargs) -> List[UserSubGood]:
+    session: Session = kwargs["session"]
+    return (
+        session.query(UserSubGood)
+        .filter(UserSubGood.user_id == user_id)
+        .all()
+    )
