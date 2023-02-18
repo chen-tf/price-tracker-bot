@@ -121,7 +121,7 @@ def clear(user_id, good_name):
 
 
 def count_user_good_info_sum(user_id):
-    return pt_repository.count_user_good_info_sum(user_id)
+    return repository.count_user_sub_goods(user_id)
 
 
 def upsert_user(user_id, chat_id):

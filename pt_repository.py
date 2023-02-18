@@ -22,15 +22,6 @@ def _execute(sql: str, parameters: tuple, handler: callable = None):
         pool.putconn(conn)
 
 
-def count_user_good_info_sum(user_id):
-    sql = "select count(1) from user_sub_good where user_id=%s and state = 1"
-    return _execute(
-        sql=sql,
-        parameters=(str(user_id),),
-        handler=(lambda cursor: cursor.fetchone()[0]),
-    )
-
-
 def add_user_good_info(user_good_info):
     conn = pool.getconn()
     try:

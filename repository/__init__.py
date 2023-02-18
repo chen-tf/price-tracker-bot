@@ -75,3 +75,14 @@ def user_unsubscribe_goods(user_sub_goods: List[UserSubGood], **kwargs):
         .values(state=UserSubGoodState.DISABLE)
     )
     session.execute(statement=statement)
+
+
+@auto_flush
+def count_user_sub_goods(user_id: str, **kwargs) -> int:
+    session: Session = kwargs["session"]
+    return (
+        session.query(UserSubGood.id)
+        .where(UserSubGood.user_id == str(user_id),
+               UserSubGood.state == UserSubGoodState.ENABLE)
+        .count()
+    )
