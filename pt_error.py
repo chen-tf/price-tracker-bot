@@ -32,3 +32,9 @@ class GoodNotExist(Error):
     """Raised when good not exist."""
 
     pass
+
+
+class EmptyPageError(Error):
+    """Raised when page is empty."""
+
+    pass

@@ -1,6 +1,5 @@
 # coding: utf-8
 import logging
-import time
 from typing import List
 
 import pt_error

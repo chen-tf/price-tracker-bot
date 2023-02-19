@@ -4,8 +4,6 @@ import time
 
 import requests
 from bs4 import BeautifulSoup
-from requests.adapters import HTTPAdapter
-from urllib3 import Retry
 
 import pt_config
 import pt_error
@@ -17,6 +15,9 @@ logger = logging.getLogger("momo")
 def find_good_info(good_id=None):
     logger.info("good_id %s", good_id)
     response = _get_good_info_from_momo(i_code=good_id)
+
+    if not response:
+        raise pt_error.EmptyPageError
 
     soup = BeautifulSoup(response, "html.parser")
     try:
@@ -46,16 +47,11 @@ def _format_price(price):
     return int(str(price).strip().replace(",", ""))
 
 
-reuse_session = requests.Session()
-reuse_session.mount("https://", HTTPAdapter(max_retries=Retry(total=3)))
-
-
 def _get_good_info_from_momo(i_code=None):
     time.sleep(round(random.uniform(0, 1), 2))
     try:
         params = {"i_code": i_code}
-        response = reuse_session.request(
-            "GET",
+        response = requests.get(
             pt_config.momo_good_url(),
             params=params,
             headers={"user-agent": pt_config.USER_AGENT,
@@ -66,7 +62,6 @@ def _get_good_info_from_momo(i_code=None):
     except Exception:
         logger.error("Get good_info and catch an exception.", exc_info=True)
         raise pt_error.UnknownRequestError
-    logger.info(f"response status:{response.status_code}")
     return response.text
 
 
