@@ -66,6 +66,7 @@ def _get_good_info_from_momo(i_code=None):
     except Exception:
         logger.error("Get good_info and catch an exception.", exc_info=True)
         raise pt_error.UnknownRequestError
+    logger.info(f"response status:{response.status_code}")
     return response.text
 
 
