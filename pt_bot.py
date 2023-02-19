@@ -148,7 +148,7 @@ def add_good(update, context):
         context.bot.send_message(chat_id=update.effective_chat.id, text=msg)
     except pt_error.GoodNotExist:
         context.bot.send_message(chat_id=update.effective_chat.id, text="商品目前無展售或是網頁不存在")
-    except pt_error.CrawlerParseError:
+    except pt_error.CrawlerParseError or pt_error.EmptyPageError:
         context.bot.send_message(chat_id=update.effective_chat.id, text="商品頁面解析失敗")
     except pt_error.ExceedLimitedSizeError:
         context.bot.send_message(

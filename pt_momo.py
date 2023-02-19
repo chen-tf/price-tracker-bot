@@ -37,7 +37,7 @@ def find_good_info(good_id=None):
         logger.error(f"html:{response}")
         logger.warning("Good not exist. id:%s", good_id)
         raise e
-    except Exception as e:
+    except Exception:
         logger.error("Parse good_info and catch an exception. good_id:%s", good_id, exc_info=True)
         raise pt_error.CrawlerParseError
     return GoodInfo(good_id=good_id, name=good_name, price=price, stock_state=stock_state)
@@ -49,6 +49,7 @@ def _format_price(price):
 
 def _get_good_info_from_momo(i_code=None):
     time.sleep(round(random.uniform(0, 1), 2))
+    result = None
     try:
         params = {"i_code": i_code}
         response = requests.get(
@@ -59,10 +60,10 @@ def _get_good_info_from_momo(i_code=None):
                      "referer": "https://m.momoshop.com.tw/"},
             timeout=pt_config.MOMO_REQUEST_TIMEOUT,
         )
-    except Exception:
-        logger.error("Get good_info and catch an exception.", exc_info=True)
-        raise pt_error.UnknownRequestError
-    return response.text
+        result = response.text
+    except requests.exceptions.ReadTimeout:
+        logger.error(f"ReadTimeout i_code:{i_code}")
+    return result
 
 
 def generate_momo_url_by_good_id(good_id):

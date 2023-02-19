@@ -79,6 +79,8 @@ def _price_sync_handler(good_info):
                 )
     except pt_error.GoodNotExist:
         pt_repository.update_good_stock_state(good_id, GoodInfo.STOCK_STATE_NOT_EXIST)
+    except pt_error.EmptyPageError:
+        logger.error(f"empty page good_id:{good_id}")
     except Exception as ex:
         logger.error(ex, exc_info=True)
 
