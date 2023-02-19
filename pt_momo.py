@@ -1,3 +1,4 @@
+import inspect
 import logging
 import random
 import time
@@ -13,7 +14,7 @@ logger = logging.getLogger("momo")
 
 
 def find_good_info(good_id=None):
-    logger.info("good_id %s", good_id)
+    logger.info(f"查詢商品資訊, good_id:{good_id}")
     response = _get_good_info_from_momo(i_code=good_id)
 
     if not response:
@@ -24,19 +25,20 @@ def find_good_info(good_id=None):
         if soup.find("meta", property="og:title") is None:
             raise pt_error.GoodNotExist
         good_name = soup.find("meta", property="og:title")["content"]
-        logger.info("good_name %s", good_name)
         price = _format_price(soup.find("meta", property="product:price:amount")["content"])
-        logger.info("price %s", price)
-        stock_state = soup.find("meta", property="product:availability")["content"]
-        if stock_state == "in stock":
+        stock_state_str = soup.find("meta", property="product:availability")["content"]
+        if stock_state_str == "in stock":
             stock_state = GoodInfo.STOCK_STATE_IN_STOCK
         else:
             stock_state = GoodInfo.STOCK_STATE_OUT_OF_STOCK
-        logger.info("stock_state %s", stock_state)
+        logger.info(f"""
+        商品名稱：{good_name}
+        價格：{price}
+        狀態：{stock_state_str}""")
     except pt_error.GoodNotExist as e:
         raise e
     except Exception:
-        logger.error("Parse good_info and catch an exception. good_id:%s", good_id, exc_info=True)
+        logger.error(f"Parse good_info and catch an exception. good_id:{good_id}", exc_info=True)
         raise pt_error.CrawlerParseError
     return GoodInfo(good_id=good_id, name=good_name, price=price, stock_state=stock_state)
 
