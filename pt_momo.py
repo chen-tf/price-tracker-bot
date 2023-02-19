@@ -33,6 +33,7 @@ def find_good_info(good_id=None):
             stock_state = GoodInfo.STOCK_STATE_OUT_OF_STOCK
         logger.info("stock_state %s", stock_state)
     except pt_error.GoodNotExist as e:
+        logger.error(f"html:{response}")
         logger.warning("Good not exist. id:%s", good_id)
         raise e
     except Exception as e:
