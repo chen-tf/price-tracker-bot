@@ -1,4 +1,6 @@
 import logging
+import random
+import time
 
 import requests
 from bs4 import BeautifulSoup
@@ -44,6 +46,7 @@ def _format_price(price):
 
 
 def _get_good_info_from_momo(i_code=None, session=requests.Session()):
+    time.sleep(round(random.uniform(0, 1), 2))
     try:
         params = {"i_code": i_code}
         session.mount("https://", HTTPAdapter(max_retries=Retry(total=3)))
@@ -51,7 +54,9 @@ def _get_good_info_from_momo(i_code=None, session=requests.Session()):
             "GET",
             pt_config.momo_good_url(),
             params=params,
-            headers={"user-agent": pt_config.USER_AGENT},
+            headers={"user-agent": pt_config.USER_AGENT,
+                     "content-type": "text/html; charset=UTF-8",
+                     "referer": "https://m.momoshop.com.tw/"},
             timeout=pt_config.MOMO_REQUEST_TIMEOUT,
         )
     except Exception:

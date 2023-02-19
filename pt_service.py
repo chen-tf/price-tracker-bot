@@ -35,7 +35,6 @@ def _price_sync_handler(good_info):
         if not is_exist:
             logger.debug("%s not exist", good_id)
             return
-        time.sleep(1)
         new_good_info = pt_momo.find_good_info(good_id=good_id)
         repository.add_good_info(new_good_info)
         cheaper_records = []
