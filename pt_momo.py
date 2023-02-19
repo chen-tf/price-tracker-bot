@@ -14,9 +14,9 @@ from pt_entity import GoodInfo
 logger = logging.getLogger("momo")
 
 
-def find_good_info(good_id=None, session=requests.Session()):
+def find_good_info(good_id=None):
     logger.info("good_id %s", good_id)
-    response = _get_good_info_from_momo(i_code=good_id, session=session)
+    response = _get_good_info_from_momo(i_code=good_id)
 
     soup = BeautifulSoup(response, "html.parser")
     try:
@@ -45,12 +45,15 @@ def _format_price(price):
     return int(str(price).strip().replace(",", ""))
 
 
-def _get_good_info_from_momo(i_code=None, session=requests.Session()):
+reuse_session = requests.Session()
+reuse_session.mount("https://", HTTPAdapter(max_retries=Retry(total=3)))
+
+
+def _get_good_info_from_momo(i_code=None):
     time.sleep(round(random.uniform(0, 1), 2))
     try:
         params = {"i_code": i_code}
-        session.mount("https://", HTTPAdapter(max_retries=Retry(total=3)))
-        response = session.request(
+        response = reuse_session.request(
             "GET",
             pt_config.momo_good_url(),
             params=params,
