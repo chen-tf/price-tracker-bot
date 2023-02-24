@@ -104,7 +104,7 @@ def find_user_sub_goods_price_higher(new_price, good_id):
         with conn:
             with conn.cursor() as cursor:
                 sql = """select usg.id,usg.user_id, usg.price, u.chat_id, u.line_notify_token from user_sub_good usg
-                    join "user" u on usg.user_id = u.id and u.state = 1
+                    join "user" u on usg.user_id = u.id and u.state = 1 and usg.state = 1
                     where usg.good_id = %s and usg.price > %s and usg.is_notified = false;
                     """
                 cursor.execute(sql, (good_id, new_price))
