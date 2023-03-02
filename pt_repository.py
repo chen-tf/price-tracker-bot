@@ -121,7 +121,7 @@ def find_user_by_good_id(good_id):
             with conn.cursor() as cursor:
                 sql = """select u.chat_id from user_sub_good usg
                 join "user" u on usg.user_id = u.id and u.state = 1
-                where usg.good_id = %s;
+                where usg.good_id = %s and usg.state = 1;
                 """
                 cursor.execute(sql, (good_id,))
                 all_results = cursor.fetchall()
