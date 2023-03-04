@@ -1,11 +1,11 @@
-import functools
+from functools import wraps
 
 from repository.database import SessionLocal
 from repository.models import User, UserSubGood, GoodInfo, UserSubGoodState, UserState, GoodInfoState
 
 
 def auto_flush(func):
-    @functools.wraps(func)
+    @wraps(func)
     def wrapper(*args):
         session = SessionLocal()
         try:

@@ -5,7 +5,7 @@ import re
 
 import requests
 import telegram
-from telegram import ChatAction
+from telegram import ChatAction, Update
 from telegram.ext import (
     CommandHandler,
     ConversationHandler,
@@ -16,7 +16,6 @@ from telegram.ext import (
 
 import pt_config
 import pt_error
-import pt_momo
 import pt_service
 from lotify_client import get_lotify_client
 from repository import UserSubGood, UserSubGoodState
@@ -33,6 +32,19 @@ logger = logging.getLogger("bot")
 
 UNTRACK = range(1)
 ADD_GOOD = range(1)
+
+
+def check_user_reg(func):
+    def wrapper(*args, **kwargs):
+        for arg in args:
+            if isinstance(arg, Update):
+                chat_id = str(arg.message.chat_id)
+                user_id = str(arg.message.from_user.id)
+                pt_service.reg_user(user_id, chat_id)
+                break
+        return func(*args, **kwargs)
+
+    return wrapper
 
 
 def consume_request(request):
@@ -74,42 +86,36 @@ def _register_bot_command_handler():
     telegram_dispatcher.add_handler(clear_conv_handler)
 
 
+@check_user_reg
 def start(update, context):
-    user_reg(update)
-    msg = (
-        "/my 顯示追蹤清單\n"
-        "/clearall 清空全部追蹤清單\n"
-        "/clear 刪除指定追蹤商品\n"
-        "/add 後貼上momo商品連結可加入追蹤清單\n"
-        "或是可以直接使用指令選單方便操作"
-    )
-    context.bot.send_message(chat_id=update.effective_chat.id, text=msg)
+    message = f'''
+            /my 顯示追蹤清單
+            /clearall 清空全部追蹤清單
+            /clear 刪除指定追蹤商品
+            /add 後貼上momo商品連結可加入追蹤清單
+            或是可以直接使用指令選單方便操作
+            ====
+            '''
+    context.bot.send_message(chat_id=update.effective_chat.id, text=inspect.cleandoc(message))
 
 
+@check_user_reg
 def line(update, context):
-    user_reg(update)
     auth_url = lotify_client.get_auth_link(state=update.message.from_user.id)
     msg = f"你專屬的 LINE 通知綁定連結\n{auth_url}"
     context.bot.send_message(chat_id=update.effective_chat.id, text=msg)
 
 
+@check_user_reg
 def add(update, context):
-    user_reg(update)
     update.message.reply_text("貼上momo商品連結加入收藏\n輸入 /cancel 後放棄動作")
     return ADD_GOOD
-
-
-def user_reg(update):
-    chat_id = str(update.message.chat_id)
-    user_id = str(update.message.from_user.id)
-    pt_service.reg_user(user_id, chat_id)
 
 
 def add_good(update, context):
     from urllib.parse import parse_qs, urlparse
 
     try:
-        chat_id = update.message.chat_id
         user_id = str(update.message.from_user.id)
         # Verify momo url
         url = update.message.text
@@ -128,7 +134,6 @@ def add_good(update, context):
             raise pt_error.NotValidMomoURL
 
         # Check the number of user sub goods
-        co = pt_service.count_user_good_info_sum(user_id)
         if pt_service.count_user_good_info_sum(user_id) >= pt_config.USER_SUB_GOOD_LIMITED:
             raise pt_error.ExceedLimitedSizeError
 
@@ -168,30 +173,11 @@ def add_good(update, context):
     return ConversationHandler.END
 
 
+@check_user_reg
 def my_good(update, context):
     user_id = str(update.message.from_user.id)
-    user_sub_goods = pt_service.find_user_sub_goods(user_id)
-    if len(user_sub_goods) == 0:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="尚未追蹤商品")
-        return
-    msgs = "追蹤清單\n"
-    for user_sub_good in user_sub_goods:
-        stock_state_string = "可購買"
-        if user_sub_good.state == GoodInfoStockState.OUT_OF_STOCK:
-            stock_state_string = "缺貨中，請等待上架後通知"
-        elif user_sub_good.state == GoodInfoStockState.NOT_EXIST:
-            stock_state_string = "商品目前無展售或是網頁不存在"
-        good_url = pt_momo.generate_momo_url_by_good_id(user_sub_good.good_id)
-        msg = f'''
-        ====
-        商品名稱:{user_sub_good.good_info.name}
-        追蹤價格:{user_sub_good.price}
-        狀態:{stock_state_string}
-        {good_url}
-        ====
-        '''
-        msgs = msgs + inspect.cleandoc(msg)
-    context.bot.send_message(chat_id=update.effective_chat.id, text=msgs)
+    response = pt_service.find_user_sub_goods(user_id)
+    context.bot.send_message(chat_id=update.effective_chat.id, text=response.to_message())
 
 
 def clear(update, context):
@@ -201,25 +187,15 @@ def clear(update, context):
 
 def clearall(update, context):
     user_id = str(update.message.from_user.id)
-    removed_goods_names = pt_service.clear(user_id, None)
-    response_msg = "無可清空的追蹤商品"
-    if len(removed_goods_names) > 0:
-        response_msg = "已清空以下物品\n"
-        for good_name in removed_goods_names:
-            response_msg += f"====\n{good_name}\n====\n"
-    context.bot.send_message(chat_id=update.effective_chat.id, text=response_msg)
+    response = pt_service.clear(user_id, None)
+    context.bot.send_message(chat_id=update.effective_chat.id, text=response.to_message())
 
 
 def untrack(update, context):
     user_id = str(update.message.from_user.id)
     good_name = update.message.text
-    removed_goods_name = pt_service.clear(user_id, good_name)
-    response_msg = "無可清空的追蹤商品"
-    if len(removed_goods_name) > 0:
-        response_msg = "已清空以下物品\n"
-        for good_name in removed_goods_name:
-            response_msg += f"====\n{good_name}\n====\n"
-    update.message.reply_text(text=response_msg)
+    response = pt_service.clear(user_id, good_name)
+    update.message.reply_text(text=response.to_message())
     return ConversationHandler.END
 
 
@@ -243,7 +219,7 @@ def is_blocked_by_user(chat_id):
     except telegram.error.Unauthorized as ex:
         if ex.message == "Forbidden: bot was blocked by the user":
             return True
-    except Exception:
+    except:
         logger.error("Failed to check block user", exc_info=True)
     return False
 

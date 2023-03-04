@@ -6,6 +6,8 @@ from sqlalchemy.exc import IntegrityError
 
 import pt_error
 import pt_momo
+from response.ClearSubGoodResponse import ClearSubGoodResponse
+from response.MySubGoodsResponse import UserSubGoodsResponse
 from lotify_client import get_lotify_client
 from pt_momo import generate_momo_url_by_good_id
 from repository import UserSubGood, user_repository, user_sub_good_repository, good_repository, UserSubGoodState, User, \
@@ -126,24 +128,26 @@ def update_user_line_token(user_id, line_notify_token):
     user_repository.save(user)
 
 
-def find_user_sub_goods(user_id) -> List[UserSubGood]:
-    return user_sub_good_repository.find_all_by_user_id_and_state(user_id, UserSubGoodState.ENABLE)
+def find_user_sub_goods(user_id) -> UserSubGoodsResponse:
+    user_sub_goods = user_sub_good_repository.find_all_by_user_id_and_state(user_id, UserSubGoodState.ENABLE)
+    return UserSubGoodsResponse(user_sub_goods)
 
 
-def clear(user_id, good_name) -> List[str]:
+def clear(user_id, good_name) -> ClearSubGoodResponse:
     user_sub_goods = user_sub_good_repository.find_all_by_user_id_and_state(user_id, UserSubGoodState.ENABLE)
     if good_name is not None:
         user_sub_goods = [user_sub_good for user_sub_good in user_sub_goods if
                           good_name in user_sub_good.good_info.name]
 
     if len(user_sub_goods) == 0:
-        return []
+        return ClearSubGoodResponse()
 
     for user_sub_good in user_sub_goods:
         user_sub_good.state = UserSubGoodState.DISABLE
         user_sub_good_repository.save(user_sub_good)
 
-    return [user_sub_good.good_info.name for user_sub_good in user_sub_goods]
+    removed_good_names = [user_sub_good.good_info.name for user_sub_good in user_sub_goods]
+    return ClearSubGoodResponse(removed_good_names)
 
 
 def count_user_good_info_sum(user_id):
@@ -152,8 +156,8 @@ def count_user_good_info_sum(user_id):
 
 def reg_user(user_id, chat_id):
     user = user_repository.find_one(user_id)
-    if not user:
-        user = User(id=user_id, chat_id=chat_id, state=UserState.ENABLE)
+    if user is not None:
+        user.state = UserState.ENABLE
     user_repository.save(user)
 
 
