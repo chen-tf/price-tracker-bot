@@ -1,18 +1,22 @@
 # coding: utf-8
 import logging
-from typing import List
+from typing import re
+from urllib.parse import urlparse, parse_qs
 
+import requests
 from sqlalchemy.exc import IntegrityError
 
+import pt_config
 import pt_error
 import pt_momo
-from response.ClearSubGoodResponse import ClearSubGoodResponse
-from response.MySubGoodsResponse import UserSubGoodsResponse
 from lotify_client import get_lotify_client
 from pt_momo import generate_momo_url_by_good_id
 from repository import UserSubGood, user_repository, user_sub_good_repository, good_repository, UserSubGoodState, User, \
     UserState
 from repository.models import GoodInfoStockState, GoodInfo, GoodInfoState
+from response.ClearSubGoodResponse import ClearSubGoodResponse
+from response.MySubGoodsResponse import UserSubGoodsResponse
+from response.UserAddGoodResponse import UserAddGoodResponse
 
 logger = logging.getLogger("Service")
 lotify_client = get_lotify_client()
@@ -158,6 +162,8 @@ def reg_user(user_id, chat_id):
     user = user_repository.find_one(user_id)
     if user is not None:
         user.state = UserState.ENABLE
+    else:
+        user = User(id=user_id, chat_id=chat_id, state=UserState.ENABLE)
     user_repository.save(user)
 
 
@@ -165,13 +171,31 @@ def get_good_info(good_id) -> GoodInfo:
     return pt_momo.find_good_info(good_id)
 
 
-def add_good_info(good_info):
-    good_repository.save(good_info)
+def add_user_sub_good(user_id: str, url: str) -> UserAddGoodResponse:
+    if user_sub_good_repository.count_by_user_id_and_state(user_id,
+                                                           UserSubGoodState.ENABLE) \
+            >= pt_config.USER_SUB_GOOD_LIMITED:
+        return UserAddGoodResponse.error(pt_error.ExceedLimitedSizeError)
 
+    good_id = _parse_good_id_from_url(url)
+    if good_id is None:
+        return UserAddGoodResponse.error(pt_error.NotValidMomoURL)
 
-def add_user_good_info(user_sub_good: UserSubGood):
     try:
-        user_sub_good_repository.save(user_sub_good)
+        good_info = pt_momo.find_good_info(good_id)
+        good_repository.save(good_info)
+    except Exception as e:
+        return UserAddGoodResponse.error(e)
+
+    user_sub_good = UserSubGood(
+        user_id=user_id,
+        good_id=good_id,
+        price=good_info.price,
+        is_notified=False,
+        state=UserSubGoodState.ENABLE
+    )
+    try:
+        user_sub_good = user_sub_good_repository.save(user_sub_good)
     except IntegrityError:
         exist_record = user_sub_good_repository.find_one_by_user_id_and_good_id(user_id=user_sub_good.user_id,
                                                                                 good_id=user_sub_good.good_id)
@@ -179,4 +203,26 @@ def add_user_good_info(user_sub_good: UserSubGood):
             exist_record.price = user_sub_good.price
             exist_record.is_notified = user_sub_good.is_notified
             exist_record.state = user_sub_good.state
-            user_sub_good_repository.save(exist_record)
+            user_sub_good = user_sub_good_repository.save(exist_record)
+
+    return UserAddGoodResponse.success(user_sub_good=user_sub_good)
+
+
+def _parse_good_id_from_url(url: str):
+    good_id = None
+    try:
+        if "https://momo.dm" in url:
+            match = re.search("https.*momo.dm.*", url)
+            response = requests.request(
+                "GET",
+                match.group(0),
+                headers={"user-agent": pt_config.USER_AGENT},
+                timeout=(10, 15),
+            )
+            url = response.url
+        result = urlparse(url)
+        query = parse_qs(result.query)
+        if "i_code" in query and len(query["i_code"]) >= 1:
+            good_id = str(query["i_code"][0])
+    finally:
+        return good_id

@@ -39,8 +39,8 @@ def find_all_by_good_id_and_price_greater_than(good_id: str, price: int,
 
 
 @auto_flush
-def save(user_sub_good: UserSubGood, session=SessionLocal()):
-    session.merge(user_sub_good)
+def save(user_sub_good: UserSubGood, session=SessionLocal()) -> UserSubGood:
+    return session.merge(user_sub_good)
 
 
 def count_by_user_id_and_state(user_id: str, user_sub_good_state: UserSubGoodState,
