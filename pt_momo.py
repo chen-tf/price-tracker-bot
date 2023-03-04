@@ -1,4 +1,3 @@
-import inspect
 import logging
 import random
 import time
@@ -8,12 +7,12 @@ from bs4 import BeautifulSoup
 
 import pt_config
 import pt_error
-from pt_entity import GoodInfo
+from repository.models import GoodInfoStockState, GoodInfo, GoodInfoState
 
 logger = logging.getLogger("momo")
 
 
-def find_good_info(good_id=None):
+def find_good_info(good_id=None) -> GoodInfo:
     logger.info(f"查詢商品資訊, good_id:{good_id}")
     response = _get_good_info_from_momo(i_code=good_id)
 
@@ -28,9 +27,9 @@ def find_good_info(good_id=None):
         price = _format_price(soup.find("meta", property="product:price:amount")["content"])
         stock_state_str = soup.find("meta", property="product:availability")["content"]
         if stock_state_str == "in stock":
-            stock_state = GoodInfo.STOCK_STATE_IN_STOCK
+            stock_state = GoodInfoStockState.IN_STOCK
         else:
-            stock_state = GoodInfo.STOCK_STATE_OUT_OF_STOCK
+            stock_state = GoodInfoStockState.OUT_OF_STOCK
         logger.info(f"""
         商品名稱：{good_name}
         價格：{price}
@@ -40,7 +39,7 @@ def find_good_info(good_id=None):
     except Exception:
         logger.error(f"Parse good_info and catch an exception. good_id:{good_id}", exc_info=True)
         raise pt_error.CrawlerParseError
-    return GoodInfo(good_id=good_id, name=good_name, price=price, stock_state=stock_state)
+    return GoodInfo(id=good_id, name=good_name, price=price, stock_state=stock_state, state=GoodInfoState.ENABLE)
 
 
 def _format_price(price):

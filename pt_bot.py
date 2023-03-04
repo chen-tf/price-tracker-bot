@@ -19,7 +19,8 @@ import pt_error
 import pt_momo
 import pt_service
 from lotify_client import get_lotify_client
-from pt_entity import GoodInfo, UserGoodInfo
+from repository import UserSubGood, UserSubGoodState
+from repository.models import GoodInfoStockState
 
 template_dir = os.path.abspath("Templates")
 
@@ -101,7 +102,7 @@ def add(update, context):
 def user_reg(update):
     chat_id = str(update.message.chat_id)
     user_id = str(update.message.from_user.id)
-    pt_service.upsert_user(user_id, chat_id)
+    pt_service.reg_user(user_id, chat_id)
 
 
 def add_good(update, context):
@@ -109,7 +110,7 @@ def add_good(update, context):
 
     try:
         chat_id = update.message.chat_id
-        user_id = update.message.from_user.id
+        user_id = str(update.message.from_user.id)
         # Verify momo url
         url = update.message.text
         if "https://momo.dm" in url:
@@ -127,23 +128,24 @@ def add_good(update, context):
             raise pt_error.NotValidMomoURL
 
         # Check the number of user sub goods
+        co = pt_service.count_user_good_info_sum(user_id)
         if pt_service.count_user_good_info_sum(user_id) >= pt_config.USER_SUB_GOOD_LIMITED:
             raise pt_error.ExceedLimitedSizeError
 
         good_id = str(query["i_code"][0])
         good_info = pt_service.get_good_info(good_id=good_id)
         pt_service.add_good_info(good_info)
-        user_good_info = UserGoodInfo(
+        user_sub_good = UserSubGood(
             user_id=user_id,
-            chat_id=chat_id,
             good_id=good_id,
-            original_price=good_info.price,
+            price=good_info.price,
             is_notified=False,
+            state=UserSubGoodState.ENABLE
         )
         stock_state_string = "可購買"
-        if good_info.stock_state == GoodInfo.STOCK_STATE_OUT_OF_STOCK:
+        if good_info.stock_state == GoodInfoStockState.OUT_OF_STOCK:
             stock_state_string = "缺貨中，請等待上架後通知"
-        pt_service.add_user_good_info(user_good_info)
+        pt_service.add_user_good_info(user_sub_good)
         msg = f"成功新增\n商品名稱:{good_info.name}\n價格:{good_info.price}\n狀態:{stock_state_string}"
         context.bot.send_message(chat_id=update.effective_chat.id, text=msg)
     except pt_error.GoodNotExist:
@@ -175,9 +177,9 @@ def my_good(update, context):
     msgs = "追蹤清單\n"
     for user_sub_good in user_sub_goods:
         stock_state_string = "可購買"
-        if user_sub_good.state == GoodInfo.STOCK_STATE_OUT_OF_STOCK:
+        if user_sub_good.state == GoodInfoStockState.OUT_OF_STOCK:
             stock_state_string = "缺貨中，請等待上架後通知"
-        elif user_sub_good.state == GoodInfo.STOCK_STATE_NOT_EXIST:
+        elif user_sub_good.state == GoodInfoStockState.NOT_EXIST:
             stock_state_string = "商品目前無展售或是網頁不存在"
         good_url = pt_momo.generate_momo_url_by_good_id(user_sub_good.good_id)
         msg = f'''
@@ -199,11 +201,11 @@ def clear(update, context):
 
 def clearall(update, context):
     user_id = str(update.message.from_user.id)
-    removed_goods_name = pt_service.clear(user_id, None)
+    removed_goods_names = pt_service.clear(user_id, None)
     response_msg = "無可清空的追蹤商品"
-    if len(removed_goods_name) > 0:
+    if len(removed_goods_names) > 0:
         response_msg = "已清空以下物品\n"
-        for good_name in removed_goods_name:
+        for good_name in removed_goods_names:
             response_msg += f"====\n{good_name}\n====\n"
     context.bot.send_message(chat_id=update.effective_chat.id, text=response_msg)
 

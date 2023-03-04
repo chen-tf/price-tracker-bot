@@ -7,6 +7,7 @@ class IntEnum(sa.types.TypeDecorator):
     The default would have stored the enum's *name* (ie the string).
     """
     impl = sa.types.Integer
+    cache_ok = True
 
     def __init__(self, enumtype, *args, **kwargs):
         super(IntEnum, self).__init__(*args, **kwargs)

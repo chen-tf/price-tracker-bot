@@ -2,12 +2,22 @@ import enum
 import uuid
 
 import sqlalchemy as db
-from sqlalchemy import func
+from sqlalchemy import func, types, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from repository.IntEnum import IntEnum
 from repository.database import Base
+
+
+class CastToIntegerType(types.TypeDecorator):
+    impl = types.Numeric
+
+    def column_expression(self, col):
+        return func.cast(col, Integer)
+
+    def bind_expression(self, col):
+        return func.cast(col, String)
 
 
 class GoodInfoState(enum.IntEnum):
@@ -84,7 +94,8 @@ class UserSubGood(Base):
     is_notified = db.Column(db.Boolean, default=False)
     state = db.Column(IntEnum(UserSubGoodState), default=UserSubGoodState.ENABLE,
                       comment="0: disable\n1: enable")
-    good_info = relationship('GoodInfo', backref='user_sub_goods', foreign_keys=[good_id], lazy="joined")
+    good_info = relationship('GoodInfo', foreign_keys=[good_id], lazy="joined")
+    user = relationship('User', foreign_keys=[user_id], lazy="joined")
 
     def __repr__(self):
         return f"UserSubGood<{self.id=}, {self.price=}>"
