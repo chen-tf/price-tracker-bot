@@ -1,6 +1,6 @@
 # coding: utf-8
 import logging
-from typing import re
+import re
 from urllib.parse import urlparse, parse_qs
 
 import requests
