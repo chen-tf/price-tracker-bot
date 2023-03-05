@@ -184,8 +184,10 @@ def add_user_sub_good(user_id: str, url: str) -> UserAddGoodResponse:
     try:
         good_info = pt_momo.find_good_info(good_id)
         good_repository.save(good_info)
-    except Exception as e:
-        return UserAddGoodResponse.error(e)
+    except pt_error.Error as error:
+        return UserAddGoodResponse.error(error)
+    except Exception:
+        return UserAddGoodResponse.error(pt_error.Error)
 
     user_sub_good = UserSubGood(
         user_id=user_id,
