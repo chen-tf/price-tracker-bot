@@ -38,10 +38,11 @@ class GoodRepositoryTest(TestCase):
     def test_enable_state_goods(self):
         self.given_good_with_state(GoodInfoState.ENABLE)
         self.given_good_with_state(GoodInfoState.DISABLE)
-        self.find_all_by_state_should_only_contains_enable_state_goods()
+        self.find_all_by_state_count_should_be(good_count=1)
 
-    def find_all_by_state_should_only_contains_enable_state_goods(self):
-        assert len(good_repository.find_all_by_state(GoodInfoState.ENABLE, self.session)) == 1
+    def find_all_by_state_count_should_be(self, good_count):
+        assert len(good_repository.find_all_by_state(GoodInfoState.ENABLE,
+                                                     self.session)) == good_count
 
     def given_good_with_state(self, state):
         self.session.merge(
