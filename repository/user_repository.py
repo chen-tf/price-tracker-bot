@@ -1,6 +1,5 @@
 from typing import List
 
-from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from repository import auto_flush, User, UserState, UserSubGood, UserSubGoodState
@@ -18,16 +17,6 @@ def find_all_by_state(state: UserState, session: Session = SessionLocal()) -> Li
 @auto_flush
 def save(user: User, session: Session = SessionLocal()):
     session.merge(user)
-
-
-@auto_flush
-def update_user_line_token(user_id: str, line_token: str, session: Session = SessionLocal()):
-    statement = (
-        update(User)
-        .filter(User.id == user_id)
-        .values(line_notify_token=line_token)
-    )
-    session.execute(statement=statement)
 
 
 def find_all_user_by_good_id(good_id: str, session: Session = SessionLocal()):

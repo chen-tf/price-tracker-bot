@@ -6,10 +6,11 @@ from repository.models import User, UserSubGood, GoodInfo, UserSubGoodState, Use
 
 def auto_flush(func):
     @wraps(func)
-    def wrapper(*args):
+    def wrapper(*args, **kwargs):
         session = SessionLocal()
         try:
-            result = func(*args, session=session)
+            kwargs["session"] = session
+            result = func(*args, **kwargs)
             # if insert、update and delete will commit the transaction
             if session.new or session.dirty or session.deleted:
                 session.flush()
