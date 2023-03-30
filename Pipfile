@@ -26,7 +26,7 @@ pylint = "~=2.15.5"
 isort = "~=5.12.0"
 black = "~=23.1.0"
 pre-commit = "~=3.0.4"
-sqlalchemy = "~=1.4.45"
+sqlalchemy = "~=2.0.7"
 testcontainers = "~=3.5.0"
 
 [dev-packages]
