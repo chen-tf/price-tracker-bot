@@ -27,7 +27,7 @@ isort = "~=5.12.0"
 black = "~=23.1.0"
 pre-commit = "~=3.0.4"
 sqlalchemy = "~=2.0.8"
-testcontainers = "~=3.5.0"
+testcontainers = "~=3.7.1"
 
 [dev-packages]
 
