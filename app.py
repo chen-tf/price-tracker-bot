@@ -36,8 +36,10 @@ def subscribe():
 # required hook endpoint to get the data from telegram
 @app.route("/webhook/" + pt_config.BOT_TOKEN, methods=["POST", "GET"])
 def webhook_handler():
+    logger.info(f"Before {request=}")
     if request.method == "POST":
         pt_bot.consume_request(request)
+    logger.info(f"After {request=}")
     return Response("OK", status=200)
 
 
