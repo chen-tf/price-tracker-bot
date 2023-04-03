@@ -1,6 +1,8 @@
 import logging
 import random
+import re
 import time
+from urllib.parse import urlparse, parse_qs
 
 import requests
 from bs4 import BeautifulSoup
@@ -12,7 +14,10 @@ from repository.entity import GoodInfoStockState, GoodInfo, GoodInfoState
 logger = logging.getLogger("momo")
 
 
-def find_good_info(good_id=None) -> GoodInfo:
+def find_good_info(good_id=None, url: str = None) -> GoodInfo:
+    if url is not None:
+        good_id = _parse_good_id_from_url(url)
+
     logger.info(f"查詢商品資訊, good_id:{good_id}")
     response = _get_good_info_from_momo(i_code=good_id)
 
@@ -42,6 +47,32 @@ def find_good_info(good_id=None) -> GoodInfo:
     return GoodInfo(id=good_id, name=good_name, price=price, stock_state=stock_state, state=GoodInfoState.ENABLE)
 
 
+def generate_momo_url_by_good_id(good_id):
+    return (pt_config.MOMO_URL + pt_config.MOMO_GOOD_URI + "?i_code=%s") % str(good_id)
+
+
+def _parse_good_id_from_url(url: str):
+    good_id = None
+    try:
+        if "https://momo.dm" in url:
+            match = re.search("https.*momo.dm.*", url)
+            response = requests.request(
+                "GET",
+                match.group(0),
+                headers={"user-agent": pt_config.USER_AGENT},
+                timeout=(10, 15),
+            )
+            url = response.url
+        result = urlparse(url)
+        query = parse_qs(result.query)
+        if "i_code" in query and len(query["i_code"]) >= 1:
+            good_id = str(query["i_code"][0])
+    finally:
+        if good_id is None:
+            raise pt_error.NotValidMomoURLException
+        return good_id
+
+
 def _format_price(price):
     return int(str(price).strip().replace(",", ""))
 
@@ -66,7 +97,3 @@ def _get_good_info_from_momo(i_code=None):
     except requests.exceptions.ReadTimeout:
         logger.error(f"ReadTimeout i_code:{i_code}")
     return result
-
-
-def generate_momo_url_by_good_id(good_id):
-    return (pt_config.MOMO_URL + pt_config.MOMO_GOOD_URI + "?i_code=%s") % str(good_id)

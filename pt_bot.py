@@ -120,6 +120,8 @@ def add_good(update, context):
         response = pt_service.add_user_sub_good(user_id=user_id, url=url)
     except pt_error.Error as e:
         response = UserAddGoodResponse.error(type(e))
+    except Exception:
+        response = UserAddGoodResponse.error(pt_error.Error)
     context.bot.send_message(chat_id=update.effective_chat.id, text=response.to_message())
     return ConversationHandler.END
 

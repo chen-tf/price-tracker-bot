@@ -1,9 +1,5 @@
 # coding: utf-8
 import logging
-import re
-from urllib.parse import urlparse, parse_qs
-
-import requests
 
 import pt_config
 import pt_error
@@ -172,56 +168,40 @@ def get_good_info(good_id) -> GoodInfo:
 
 
 def add_user_sub_good(user_id: str, url: str) -> UserAddGoodResponse:
+    _ensure_user_maximum_sub_goods(user_id)
+    good_info = merge(pt_momo.find_good_info(url=url))
+    return UserAddGoodResponse.success(user_sub_good=_upsert_user_sub_good(good_info, user_id))
+
+
+def _ensure_user_maximum_sub_goods(user_id):
     if user_sub_good_repository.count_by_user_id_and_state(user_id,
                                                            UserSubGoodState.ENABLE) \
             >= pt_config.USER_SUB_GOOD_LIMITED:
         raise pt_error.ExceedLimitedSizeException
 
-    good_id = _parse_good_id_from_url(url)
-    if good_id is None:
-        raise pt_error.NotValidMomoURLException
 
-    try:
-        good_info = merge(pt_momo.find_good_info(good_id))
-    except pt_error.Error as error:
-        return UserAddGoodResponse.error(error)
-    except Exception:
-        return UserAddGoodResponse.error(pt_error.Error)
+def _upsert_user_sub_good(good_info, user_id):
+    user_sub_good = _create_user_sub_good(good_info, user_id)
+    exist_record = user_sub_good_repository.find_one_by_user_id_and_good_id(user_id=user_sub_good.user_id,
+                                                                            good_id=user_sub_good.good_id)
+    if exist_record:
+        _update_existing_sub_good(exist_record, user_sub_good)
+        return merge(exist_record)
+    else:
+        return merge(user_sub_good)
 
-    user_sub_good = UserSubGood(
+
+def _update_existing_sub_good(exist_record, user_sub_good):
+    exist_record.price = user_sub_good.price
+    exist_record.is_notified = user_sub_good.is_notified
+    exist_record.state = user_sub_good.state
+
+
+def _create_user_sub_good(good_info, user_id):
+    return UserSubGood(
         user_id=user_id,
-        good_id=good_id,
+        good_id=good_info.id,
         price=good_info.price,
         is_notified=False,
         state=UserSubGoodState.ENABLE
     )
-    exist_record = user_sub_good_repository.find_one_by_user_id_and_good_id(user_id=user_sub_good.user_id,
-                                                                            good_id=user_sub_good.good_id)
-    if exist_record:
-        exist_record.price = user_sub_good.price
-        exist_record.is_notified = user_sub_good.is_notified
-        exist_record.state = user_sub_good.state
-        user_sub_good = merge(exist_record)
-    else:
-        user_sub_good = merge(user_sub_good)
-    return UserAddGoodResponse.success(user_sub_good=user_sub_good)
-
-
-def _parse_good_id_from_url(url: str):
-    good_id = None
-    try:
-        if "https://momo.dm" in url:
-            match = re.search("https.*momo.dm.*", url)
-            response = requests.request(
-                "GET",
-                match.group(0),
-                headers={"user-agent": pt_config.USER_AGENT},
-                timeout=(10, 15),
-            )
-            url = response.url
-        result = urlparse(url)
-        query = parse_qs(result.query)
-        if "i_code" in query and len(query["i_code"]) >= 1:
-            good_id = str(query["i_code"][0])
-    finally:
-        return good_id
