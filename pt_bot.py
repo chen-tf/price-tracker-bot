@@ -13,8 +13,10 @@ from telegram.ext import (
 )
 
 import pt_config
+import pt_error
 import pt_service
 from lotify_client import get_lotify_client
+from response.UserAddGoodResponse import UserAddGoodResponse
 
 template_dir = os.path.abspath("Templates")
 
@@ -114,7 +116,10 @@ def add(update, context):
 def add_good(update, context):
     user_id = str(update.message.from_user.id)
     url = update.message.text
-    response = pt_service.add_user_sub_good(user_id=user_id, url=url)
+    try:
+        response = pt_service.add_user_sub_good(user_id=user_id, url=url)
+    except pt_error.Error as e:
+        response = UserAddGoodResponse.error(type(e))
     context.bot.send_message(chat_id=update.effective_chat.id, text=response.to_message())
     return ConversationHandler.END
 

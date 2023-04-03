@@ -7,11 +7,11 @@ import pt_error
 from repository.entity import GoodInfoStockState, UserSubGood
 
 error_message: dict[Type[pt_error.Error], str] = {
-    pt_error.GoodNotExist: "商品目前無展售或是網頁不存在",
-    pt_error.CrawlerParseError: "商品頁面解析失敗",
-    pt_error.EmptyPageError: "商品頁面解析失敗",
-    pt_error.ExceedLimitedSizeError: f"追蹤物品已達{pt_config.USER_SUB_GOOD_LIMITED}件",
-    pt_error.NotValidMomoURL: "無效momo商品連結"
+    pt_error.GoodNotException: "商品目前無展售或是網頁不存在",
+    pt_error.CrawlerParseException: "商品頁面解析失敗",
+    pt_error.EmptyPageException: "商品頁面解析失敗",
+    pt_error.ExceedLimitedSizeException: f"追蹤物品已達{pt_config.USER_SUB_GOOD_LIMITED}件",
+    pt_error.NotValidMomoURLException: "無效momo商品連結"
 }
 
 default_error_message = "Something wrong...try again."

@@ -17,12 +17,12 @@ def find_good_info(good_id=None) -> GoodInfo:
     response = _get_good_info_from_momo(i_code=good_id)
 
     if not response:
-        raise pt_error.EmptyPageError
+        raise pt_error.EmptyPageException
 
     soup = BeautifulSoup(response, "html.parser")
     try:
         if soup.find("meta", property="og:title") is None:
-            raise pt_error.GoodNotExist
+            raise pt_error.GoodNotException
         good_name = soup.find("meta", property="og:title")["content"]
         price = _format_price(soup.find("meta", property="product:price:amount")["content"])
         stock_state_str = soup.find("meta", property="product:availability")["content"]
@@ -34,11 +34,11 @@ def find_good_info(good_id=None) -> GoodInfo:
         商品名稱：{good_name}
         價格：{price}
         狀態：{stock_state_str}""")
-    except pt_error.GoodNotExist as e:
+    except pt_error.GoodNotException as e:
         raise e
     except Exception:
         logger.error(f"Parse good_info and catch an exception. good_id:{good_id}", exc_info=True)
-        raise pt_error.CrawlerParseError
+        raise pt_error.CrawlerParseException
     return GoodInfo(id=good_id, name=good_name, price=price, stock_state=stock_state, state=GoodInfoState.ENABLE)
 
 

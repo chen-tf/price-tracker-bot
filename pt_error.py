@@ -4,37 +4,37 @@ class Error(Exception):
     pass
 
 
-class ExceedLimitedSizeError(Error):
+class ExceedLimitedSizeException(Error):
     """Raised when the user sub good size is over 11"""
 
     pass
 
 
-class CrawlerParseError(Error):
+class CrawlerParseException(Error):
     """Raised when parse momo good's info page error."""
 
     pass
 
 
-class NotValidMomoURL(Error):
+class NotValidMomoURLException(Error):
     """Raised when url not valid."""
 
     pass
 
 
-class UnknownRequestError(Error):
+class UnknownRequestException(Error):
     """Raised when request unknown error"""
 
     pass
 
 
-class GoodNotExist(Error):
+class GoodNotException(Error):
     """Raised when good not exist."""
 
     pass
 
 
-class EmptyPageError(Error):
+class EmptyPageException(Error):
     """Raised when page is empty."""
 
     pass

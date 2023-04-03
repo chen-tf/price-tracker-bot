@@ -85,11 +85,11 @@ def _price_sync_handler(good_info: GoodInfo):
                     msg % (new_good_info.name, good_page_url),
                     str(follow_good_chat_id),
                 )
-    except pt_error.GoodNotExist:
+    except pt_error.GoodNotException:
         if new_good_info is not None:
             new_good_info.state = GoodInfoStockState.NOT_EXIST
             merge(new_good_info)
-    except pt_error.EmptyPageError:
+    except pt_error.EmptyPageException:
         logger.error(f"empty page good_id:{good_id}")
     except Exception as ex:
         logger.error(ex, exc_info=True)
@@ -175,11 +175,11 @@ def add_user_sub_good(user_id: str, url: str) -> UserAddGoodResponse:
     if user_sub_good_repository.count_by_user_id_and_state(user_id,
                                                            UserSubGoodState.ENABLE) \
             >= pt_config.USER_SUB_GOOD_LIMITED:
-        return UserAddGoodResponse.error(pt_error.ExceedLimitedSizeError)
+        raise pt_error.ExceedLimitedSizeException
 
     good_id = _parse_good_id_from_url(url)
     if good_id is None:
-        return UserAddGoodResponse.error(pt_error.NotValidMomoURL)
+        raise pt_error.NotValidMomoURLException
 
     try:
         good_info = merge(pt_momo.find_good_info(good_id))
