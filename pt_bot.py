@@ -18,7 +18,7 @@ import pt_service
 from lotify_client import get_lotify_client
 from response.UserAddGoodResponse import UserAddGoodResponse
 
-template_dir = os.path.abspath("Templates")
+template_dir = os.path.abspath("templates")
 
 lotify_client = get_lotify_client()
 

@@ -8,7 +8,7 @@ import pt_config
 import pt_service
 from lotify_client import get_lotify_client
 
-template_dir = os.path.abspath("Templates")
+template_dir = os.path.abspath("templates")
 
 lotify_client = get_lotify_client()
 
