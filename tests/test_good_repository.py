@@ -1,6 +1,6 @@
 from repository import good_repository
 from repository.entity import GoodInfoStockState, GoodInfoState, GoodInfo
-from tests.repository.base_pg_testcontainer import BasePGTestContainer
+from tests.base_pg_testcontainer import BasePGTestContainer
 
 
 class TestGoodRepository(BasePGTestContainer):

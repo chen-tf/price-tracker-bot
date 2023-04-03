@@ -1,7 +1,7 @@
 from repository import user_repository
 from repository.entity import UserState, User, GoodInfo, GoodInfoStockState, GoodInfoState, UserSubGood, \
     UserSubGoodState
-from tests.repository.base_pg_testcontainer import BasePGTestContainer
+from tests.base_pg_testcontainer import BasePGTestContainer
 
 
 class TestUserRepository(BasePGTestContainer):
