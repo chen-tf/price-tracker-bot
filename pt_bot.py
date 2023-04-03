@@ -97,7 +97,11 @@ def start(update, context):
 @check_user_reg
 def line(update, context):
     auth_url = lotify_client.get_auth_link(state=update.message.from_user.id)
-    msg = f"你專屬的 LINE 通知綁定連結\n{auth_url}"
+    msg = inspect.cleandoc(f"""
+    你專屬的 LINE 通知綁定連結
+    => 為確保綁定流程正常，請複製連結後在手機瀏覽器開啟
+    {auth_url}
+    """)
     context.bot.send_message(chat_id=update.effective_chat.id, text=msg)
 
 
