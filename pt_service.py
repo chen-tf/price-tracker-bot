@@ -6,8 +6,7 @@ import pt_error
 import pt_momo
 from lotify_client import get_lotify_client
 from pt_momo import generate_momo_url_by_good_id
-from repository import good_repository, user_sub_good_repository, user_repository
-from repository.common_repository import merge
+from repository import good_repository, user_sub_good_repository, user_repository, common_repository
 from repository.entity import GoodInfoStockState, GoodInfo, GoodInfoState, UserSubGoodState, UserState, User, \
     UserSubGood
 from response.ClearSubGoodResponse import ClearSubGoodResponse
@@ -39,7 +38,7 @@ def _price_sync_handler(good_info: GoodInfo):
             logger.debug("%s not exist", good_id)
             return
         new_good_info = pt_momo.find_good_info(good_id=good_id)
-        merge(new_good_info)
+        common_repository.merge(new_good_info)
         cheaper_records = []
         if new_good_info.price != good_info.price:
             user_sub_good_repository.update_notified_by_good_id(good_id, False)
@@ -84,7 +83,7 @@ def _price_sync_handler(good_info: GoodInfo):
     except pt_error.GoodNotException:
         if new_good_info is not None:
             new_good_info.state = GoodInfoStockState.NOT_EXIST
-            merge(new_good_info)
+            common_repository.merge(new_good_info)
     except pt_error.EmptyPageException:
         logger.error(f"empty page good_id:{good_id}")
     except Exception as ex:
@@ -98,7 +97,7 @@ def _handle_redundant_good_info(good_info: GoodInfo):
         return True
 
     good_info.state = GoodInfoState.DISABLE
-    merge(good_info)
+    common_repository.merge(good_info)
     return False
 
 
@@ -115,17 +114,17 @@ def _disable_not_active_user_sub_good_handler(user: User):
 
     if pt_bot.is_blocked_by_user(user.chat_id):
         user.state = UserState.DISABLE
-        merge(user)
+        common_repository.merge(user)
         user_sub_goods = user_sub_good_repository.find_all_by_user_id_and_state(user.id, UserSubGoodState.ENABLE)
         for user_sub_good in user_sub_goods:
             user_sub_good.state = UserSubGoodState.DISABLE
-            merge(user_sub_good)
+            common_repository.merge(user_sub_good)
 
 
 def update_user_line_token(user_id, line_notify_token):
     user = user_repository.find_one(user_id)
     user.line_notify_token = line_notify_token
-    merge(user)
+    common_repository.merge(user)
 
 
 def find_user_sub_goods(user_id) -> UserSubGoodsResponse:
@@ -144,7 +143,7 @@ def clear(user_id, good_name) -> ClearSubGoodResponse:
 
     for user_sub_good in user_sub_goods:
         user_sub_good.state = UserSubGoodState.DISABLE
-        merge(user_sub_good)
+        common_repository.merge(user_sub_good)
 
     removed_good_names = [user_sub_good.good_info.name for user_sub_good in user_sub_goods]
     return ClearSubGoodResponse(removed_good_names)
@@ -160,7 +159,7 @@ def reg_user(user_id, chat_id):
         user.state = UserState.ENABLE
     else:
         user = User(id=user_id, chat_id=chat_id, state=UserState.ENABLE)
-    merge(user)
+    common_repository.merge(user)
 
 
 def get_good_info(good_id) -> GoodInfo:
@@ -169,7 +168,8 @@ def get_good_info(good_id) -> GoodInfo:
 
 def add_user_sub_good(user_id: str, url: str) -> UserAddGoodResponse:
     _ensure_user_maximum_sub_goods(user_id)
-    good_info = merge(pt_momo.find_good_info(url=url))
+    good_info = pt_momo.find_good_info(url=url)
+    good_info = common_repository.merge(good_info)
     return UserAddGoodResponse.success(user_sub_good=_upsert_user_sub_good(good_info, user_id))
 
 
@@ -186,9 +186,9 @@ def _upsert_user_sub_good(good_info, user_id):
                                                                             good_id=user_sub_good.good_id)
     if exist_record:
         _update_existing_sub_good(exist_record, user_sub_good)
-        return merge(exist_record)
+        return common_repository.merge(exist_record)
     else:
-        return merge(user_sub_good)
+        return common_repository.merge(user_sub_good)
 
 
 def _update_existing_sub_good(exist_record, user_sub_good):
