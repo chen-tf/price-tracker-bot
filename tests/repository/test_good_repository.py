@@ -1,6 +1,6 @@
 from repository import good_repository, GoodInfoState, GoodInfo
-from repository.models import GoodInfoStockState
-from tests.base_pg_testcontainer import BasePGTestContainer
+from repository.entity import GoodInfoStockState
+from tests.repository.base_pg_testcontainer import BasePGTestContainer
 
 
 class TestGoodRepository(BasePGTestContainer):
@@ -14,5 +14,5 @@ class TestGoodRepository(BasePGTestContainer):
         assert len(goods) == 1 and goods[0].id == good_id
 
     def _given_enable_good(self, good_id: str):
-        self.session.merge(
+        self.session.add(
             GoodInfo(id=good_id, state=GoodInfoState.ENABLE, stock_state=GoodInfoStockState.IN_STOCK))

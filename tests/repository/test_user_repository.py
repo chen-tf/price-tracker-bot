@@ -1,9 +1,7 @@
-from sqlalchemy.exc import NoResultFound
-
 from repository import user_repository
-from repository.models import UserState, User, GoodInfo, GoodInfoStockState, GoodInfoState, UserSubGood, \
+from repository.entity import UserState, User, GoodInfo, GoodInfoStockState, GoodInfoState, UserSubGood, \
     UserSubGoodState
-from tests.base_pg_testcontainer import BasePGTestContainer
+from tests.repository.base_pg_testcontainer import BasePGTestContainer
 
 
 class TestUserRepository(BasePGTestContainer):
@@ -31,11 +29,11 @@ class TestUserRepository(BasePGTestContainer):
         self.assertEqual(len(user_repository.find_all_user_by_good_id(good_id="good", session=self.session)), 1)
 
     def _given_user_sub_good(self, good_id: str):
-        self.session.merge(
+        self.session.add(
             GoodInfo(id=good_id, stock_state=GoodInfoStockState.IN_STOCK, state=GoodInfoState.ENABLE))
         user_id = "345"
-        self.session.merge(User(id=user_id, state=UserState.ENABLE))
-        self.session.merge(
+        self.session.add(User(id=user_id, state=UserState.ENABLE))
+        self.session.add(
             UserSubGood(state=UserSubGoodState.ENABLE, good_id=good_id, user_id=user_id))
 
     def _find_all_users_by_enable_state_should_only_contains(self, user_id: str):
@@ -43,14 +41,13 @@ class TestUserRepository(BasePGTestContainer):
         assert len(users) == 1 and users[0].id == user_id
 
     def _given_enable_user(self, user_id: str):
-        self.session.merge(User(id=user_id, state=UserState.ENABLE))
+        self.session.add(User(id=user_id, state=UserState.ENABLE))
 
     def _find_one_user_id_should_be(self, user_id: str):
         self.assertEqual(user_repository.find_one(user_id=user_id, session=self.session).id, user_id)
 
     def _given_user_with_id(self, user_id):
-        self.session.merge(User(id=user_id))
+        self.session.add(User(id=user_id))
 
     def _find_one_user_should_raise_no_result_found(self, user_id: str):
-        with self.assertRaises(NoResultFound):
-            user_repository.find_one(user_id=user_id, session=self.session)
+        self.assertIsNone(user_repository.find_one(user_id=user_id, session=self.session))

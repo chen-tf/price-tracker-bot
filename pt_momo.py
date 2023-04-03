@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 
 import pt_config
 import pt_error
-from repository.models import GoodInfoStockState, GoodInfo, GoodInfoState
+from repository.entity import GoodInfoStockState, GoodInfo, GoodInfoState
 
 logger = logging.getLogger("momo")
 

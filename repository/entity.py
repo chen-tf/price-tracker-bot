@@ -6,7 +6,7 @@ from sqlalchemy import func, types, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
-from repository.IntEnum import IntEnum
+from repository.type_converter import IntEnum
 from repository.database import Base
 
 

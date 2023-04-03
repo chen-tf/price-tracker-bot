@@ -4,16 +4,17 @@ import re
 from urllib.parse import urlparse, parse_qs
 
 import requests
-from sqlalchemy.exc import IntegrityError
 
 import pt_config
 import pt_error
 import pt_momo
 from lotify_client import get_lotify_client
 from pt_momo import generate_momo_url_by_good_id
-from repository import UserSubGood, user_repository, user_sub_good_repository, good_repository, UserSubGoodState, User, \
-    UserState
-from repository.models import GoodInfoStockState, GoodInfo, GoodInfoState
+from repository import good_repository, user_sub_good_repository, user_repository
+from repository.common_repository import merge
+from repository.database import Session
+from repository.entity import GoodInfoStockState, GoodInfo, GoodInfoState, UserSubGoodState, UserState, User, \
+    UserSubGood
 from response.ClearSubGoodResponse import ClearSubGoodResponse
 from response.MySubGoodsResponse import UserSubGoodsResponse
 from response.UserAddGoodResponse import UserAddGoodResponse
@@ -43,7 +44,7 @@ def _price_sync_handler(good_info: GoodInfo):
             logger.debug("%s not exist", good_id)
             return
         new_good_info = pt_momo.find_good_info(good_id=good_id)
-        good_repository.save(new_good_info)
+        merge(new_good_info)
         cheaper_records = []
         if new_good_info.price != good_info.price:
             user_sub_good_repository.update_notified_by_good_id(good_id, False)
@@ -88,7 +89,7 @@ def _price_sync_handler(good_info: GoodInfo):
     except pt_error.GoodNotExist:
         if new_good_info is not None:
             new_good_info.state = GoodInfoStockState.NOT_EXIST
-            good_repository.save(new_good_info)
+            merge(new_good_info)
     except pt_error.EmptyPageError:
         logger.error(f"empty page good_id:{good_id}")
     except Exception as ex:
@@ -102,7 +103,7 @@ def _handle_redundant_good_info(good_info: GoodInfo):
         return True
 
     good_info.state = GoodInfoState.DISABLE
-    good_repository.save(good_info)
+    merge(good_info)
     return False
 
 
@@ -119,17 +120,17 @@ def _disable_not_active_user_sub_good_handler(user: User):
 
     if pt_bot.is_blocked_by_user(user.chat_id):
         user.state = UserState.DISABLE
-        user_repository.save(user)
+        merge(user)
         user_sub_goods = user_sub_good_repository.find_all_by_user_id_and_state(user.id, UserSubGoodState.ENABLE)
         for user_sub_good in user_sub_goods:
             user_sub_good.state = UserSubGoodState.DISABLE
-            user_sub_good_repository.save(user_sub_good)
+            merge(user_sub_good)
 
 
 def update_user_line_token(user_id, line_notify_token):
     user = user_repository.find_one(user_id)
     user.line_notify_token = line_notify_token
-    user_repository.save(user)
+    merge(user)
 
 
 def find_user_sub_goods(user_id) -> UserSubGoodsResponse:
@@ -148,7 +149,7 @@ def clear(user_id, good_name) -> ClearSubGoodResponse:
 
     for user_sub_good in user_sub_goods:
         user_sub_good.state = UserSubGoodState.DISABLE
-        user_sub_good_repository.save(user_sub_good)
+        merge(user_sub_good)
 
     removed_good_names = [user_sub_good.good_info.name for user_sub_good in user_sub_goods]
     return ClearSubGoodResponse(removed_good_names)
@@ -160,11 +161,11 @@ def count_user_good_info_sum(user_id):
 
 def reg_user(user_id, chat_id):
     user = user_repository.find_one(user_id)
-    if user is not None:
+    if user:
         user.state = UserState.ENABLE
     else:
         user = User(id=user_id, chat_id=chat_id, state=UserState.ENABLE)
-    user_repository.save(user)
+    merge(user)
 
 
 def get_good_info(good_id) -> GoodInfo:
@@ -172,6 +173,7 @@ def get_good_info(good_id) -> GoodInfo:
 
 
 def add_user_sub_good(user_id: str, url: str) -> UserAddGoodResponse:
+    # with session_scope() as session:
     if user_sub_good_repository.count_by_user_id_and_state(user_id,
                                                            UserSubGoodState.ENABLE) \
             >= pt_config.USER_SUB_GOOD_LIMITED:
@@ -183,7 +185,7 @@ def add_user_sub_good(user_id: str, url: str) -> UserAddGoodResponse:
 
     try:
         good_info = pt_momo.find_good_info(good_id)
-        good_repository.save(good_info)
+        merge(good_info)
     except pt_error.Error as error:
         return UserAddGoodResponse.error(error)
     except Exception:
@@ -196,17 +198,15 @@ def add_user_sub_good(user_id: str, url: str) -> UserAddGoodResponse:
         is_notified=False,
         state=UserSubGoodState.ENABLE
     )
-    try:
-        user_sub_good = user_sub_good_repository.save(user_sub_good)
-    except IntegrityError:
-        exist_record = user_sub_good_repository.find_one_by_user_id_and_good_id(user_id=user_sub_good.user_id,
-                                                                                good_id=user_sub_good.good_id)
-        if exist_record is not None:
-            exist_record.price = user_sub_good.price
-            exist_record.is_notified = user_sub_good.is_notified
-            exist_record.state = user_sub_good.state
-            user_sub_good = user_sub_good_repository.save(exist_record)
-
+    exist_record = user_sub_good_repository.find_one_by_user_id_and_good_id(user_id=user_sub_good.user_id,
+                                                                            good_id=user_sub_good.good_id)
+    if exist_record:
+        exist_record.price = user_sub_good.price
+        exist_record.is_notified = user_sub_good.is_notified
+        exist_record.state = user_sub_good.state
+        merge(exist_record)
+    else:
+        merge(user_sub_good)
     return UserAddGoodResponse.success(user_sub_good=user_sub_good)
 
 

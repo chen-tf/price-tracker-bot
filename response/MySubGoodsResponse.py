@@ -3,8 +3,7 @@ from dataclasses import dataclass, field
 from typing import List
 
 import pt_momo
-from repository import UserSubGood
-from repository.models import GoodInfoStockState
+from repository.entity import GoodInfoStockState, UserSubGood
 
 
 @dataclass

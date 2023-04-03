@@ -4,8 +4,7 @@ from typing import Type
 
 import pt_config
 import pt_error
-from repository import UserSubGood
-from repository.models import GoodInfoStockState
+from repository.entity import GoodInfoStockState, UserSubGood
 
 error_message: dict[Type[pt_error.Error], str] = {
     pt_error.GoodNotExist: "商品目前無展售或是網頁不存在",

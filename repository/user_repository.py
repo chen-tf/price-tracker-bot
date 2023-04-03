@@ -1,25 +1,21 @@
-from typing import List
+from typing import List, Optional
 
-from sqlalchemy.orm import Session
-
-from repository import auto_flush, User, UserState, UserSubGood, UserSubGoodState
-from repository.database import SessionLocal
+from repository.database import with_session, Session
+from repository.entity import User, UserState, UserSubGood, UserSubGoodState
 
 
-def find_one(user_id: str, session: Session = SessionLocal()) -> User:
-    return session.query(User).filter(User.id == user_id).one()
+@with_session
+def find_one(user_id: str, session: Session) -> Optional[User]:
+    return session.query(User).filter(User.id == user_id).first()
 
 
-def find_all_by_state(state: UserState, session: Session = SessionLocal()) -> List[User]:
+@with_session
+def find_all_by_state(state: UserState, session: Session) -> List[User]:
     return session.query(User).filter(User.state == state).all()
 
 
-@auto_flush
-def save(user: User, session: Session = SessionLocal()):
-    session.merge(user)
-
-
-def find_all_user_by_good_id(good_id: str, session: Session = SessionLocal()):
+@with_session
+def find_all_user_by_good_id(good_id: str, session: Session):
     return (
         session.query(User)
         .join(UserSubGood)

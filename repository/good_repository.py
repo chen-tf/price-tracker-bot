@@ -1,15 +1,9 @@
 from typing import List
 
-from sqlalchemy.orm import Session
-
-from repository import GoodInfo, auto_flush, GoodInfoState
-from repository.database import SessionLocal
+from repository.database import with_session, Session
+from repository.entity import GoodInfoState, GoodInfo
 
 
-@auto_flush
-def save(good_info: GoodInfo, session: Session = SessionLocal()):
-    session.merge(good_info)
-
-
-def find_all_by_state(state: GoodInfoState, session: Session = SessionLocal()) -> List[GoodInfo]:
+@with_session
+def find_all_by_state(state: GoodInfoState, session: Session) -> List[GoodInfo]:
     return session.query(GoodInfo).filter(GoodInfo.state == state).all()
