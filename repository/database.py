@@ -13,8 +13,7 @@ eng = create_engine(
     f"{pt_config.DB_HOST}:{pt_config.DB_PORT}/{pt_config.DB_NAME}",
     pool_size=20,
     max_overflow=0,
-    pool_pre_ping=True,
-    echo=True
+    pool_pre_ping=True
 )
 Session = scoped_session(sessionmaker(bind=eng, expire_on_commit=False))
 Base = declarative_base()

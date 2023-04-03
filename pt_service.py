@@ -12,7 +12,6 @@ from lotify_client import get_lotify_client
 from pt_momo import generate_momo_url_by_good_id
 from repository import good_repository, user_sub_good_repository, user_repository
 from repository.common_repository import merge
-from repository.database import Session
 from repository.entity import GoodInfoStockState, GoodInfo, GoodInfoState, UserSubGoodState, UserState, User, \
     UserSubGood
 from response.ClearSubGoodResponse import ClearSubGoodResponse
@@ -173,7 +172,6 @@ def get_good_info(good_id) -> GoodInfo:
 
 
 def add_user_sub_good(user_id: str, url: str) -> UserAddGoodResponse:
-    # with session_scope() as session:
     if user_sub_good_repository.count_by_user_id_and_state(user_id,
                                                            UserSubGoodState.ENABLE) \
             >= pt_config.USER_SUB_GOOD_LIMITED:
@@ -184,8 +182,7 @@ def add_user_sub_good(user_id: str, url: str) -> UserAddGoodResponse:
         return UserAddGoodResponse.error(pt_error.NotValidMomoURL)
 
     try:
-        good_info = pt_momo.find_good_info(good_id)
-        merge(good_info)
+        good_info = merge(pt_momo.find_good_info(good_id))
     except pt_error.Error as error:
         return UserAddGoodResponse.error(error)
     except Exception:
@@ -204,9 +201,9 @@ def add_user_sub_good(user_id: str, url: str) -> UserAddGoodResponse:
         exist_record.price = user_sub_good.price
         exist_record.is_notified = user_sub_good.is_notified
         exist_record.state = user_sub_good.state
-        merge(exist_record)
+        user_sub_good = merge(exist_record)
     else:
-        merge(user_sub_good)
+        user_sub_good = merge(user_sub_good)
     return UserAddGoodResponse.success(user_sub_good=user_sub_good)
 
 
