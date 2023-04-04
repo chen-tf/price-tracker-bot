@@ -149,11 +149,7 @@ def clear(user_id, good_name) -> ClearSubGoodResponse:
     return ClearSubGoodResponse(removed_good_names)
 
 
-def count_user_good_info_sum(user_id):
-    return user_sub_good_repository.count_by_user_id_and_state(user_id, UserSubGoodState.ENABLE)
-
-
-def reg_user(user_id, chat_id):
+def ensure_user_registration(user_id, chat_id):
     user = user_repository.find_one(user_id)
     if user:
         user.state = UserState.ENABLE

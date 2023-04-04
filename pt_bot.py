@@ -35,7 +35,7 @@ def check_user_reg(func):
             if isinstance(arg, Update):
                 chat_id = str(arg.message.chat_id)
                 user_id = str(arg.message.from_user.id)
-                pt_service.reg_user(user_id, chat_id)
+                pt_service.ensure_user_registration(user_id, chat_id)
                 break
         return func(*args, **kwargs)
 
