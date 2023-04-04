@@ -132,14 +132,8 @@ def find_user_sub_goods(user_id: str) -> UserSubGoodsResponse:
     return UserSubGoodsResponse(user_sub_goods)
 
 
-def clear(user_id: str, good_name: str) -> ClearSubGoodResponse:
-    user_sub_goods = user_sub_good_repository.find_all_by_user_id_and_state(user_id, UserSubGoodState.ENABLE)
-    if good_name is not None:
-        user_sub_goods = [user_sub_good for user_sub_good in user_sub_goods if
-                          good_name in user_sub_good.good_info.name]
-
-    if len(user_sub_goods) == 0:
-        return ClearSubGoodResponse()
+def clear_user_sub_goods(user_id: str, good_name: str = None) -> ClearSubGoodResponse:
+    user_sub_goods = find_user_sub_goods_contains_name(user_id, good_name)
 
     for user_sub_good in user_sub_goods:
         user_sub_good.state = UserSubGoodState.DISABLE
@@ -147,6 +141,15 @@ def clear(user_id: str, good_name: str) -> ClearSubGoodResponse:
 
     removed_good_names = [user_sub_good.good_info.name for user_sub_good in user_sub_goods]
     return ClearSubGoodResponse(removed_good_names)
+
+
+def find_user_sub_goods_contains_name(user_id, good_name):
+    user_sub_goods = user_sub_good_repository.find_all_by_user_id_and_state(user_id, UserSubGoodState.ENABLE)
+    not_clear_all = good_name is not None
+    if not_clear_all:
+        user_sub_goods = [user_sub_good for user_sub_good in user_sub_goods if
+                          good_name in user_sub_good.good_info.name]
+    return user_sub_goods
 
 
 def ensure_user_registration(user_id: str, chat_id: str) -> None:

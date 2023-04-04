@@ -1,3 +1,4 @@
+from typing import List
 from unittest import TestCase, mock
 from unittest.mock import patch
 
@@ -7,6 +8,47 @@ import pt_config
 import pt_service
 from pt_error import ExceedLimitedSizeException
 from repository.entity import GoodInfo, UserSubGood, UserSubGoodState
+
+
+class TestClearUserSubGoods(TestCase):
+    def setUp(self) -> None:
+        self.fake_find_all_by_user_id_and_state = \
+            patch('repository.user_sub_good_repository.find_all_by_user_id_and_state').start()
+        self.fake_merge = patch('repository.common_repository.merge').start()
+
+    def tearDown(self) -> None:
+        mock.patch.stopall()
+
+    def test_emtpy_user_sub_goods(self):
+        self._given_user_sub_goods(good_names=[])
+
+        actual = pt_service.clear_user_sub_goods(user_id='user-test', good_name='iPhone')
+
+        self._removed_good_names_should_be([], actual)
+
+    def test_contains_removed_good_name(self):
+        self._given_user_sub_goods(good_names=['iPhone 13', 'Nokia 3310'])
+
+        actual = pt_service.clear_user_sub_goods(user_id='user-test', good_name='iPhone')
+
+        self.fake_merge.assert_called_once()
+        self._removed_good_names_should_be(['iPhone 13'], actual)
+
+    def test_remove_all(self):
+        self._given_user_sub_goods(good_names=['iPhone 13', 'Nokia 3310'])
+
+        actual = pt_service.clear_user_sub_goods(user_id='user-test')
+
+        self._removed_good_names_should_be(['iPhone 13', 'Nokia 3310'], actual)
+
+    def _given_user_sub_goods(self, good_names: List[str]):
+        self.fake_find_all_by_user_id_and_state.return_value = [
+            UserSubGood(good_info=GoodInfo(name=name)) for name in good_names
+        ]
+
+    def _removed_good_names_should_be(self, expected_good_names: List[str], actual):
+        self.assertEqual(self.fake_merge.call_count, len(expected_good_names))
+        self.assertEqual(actual.removed_good_names, expected_good_names)
 
 
 class TestAddUserSubGood(TestCase):

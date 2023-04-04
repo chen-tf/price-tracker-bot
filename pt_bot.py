@@ -138,14 +138,14 @@ async def clear(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def clearall(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.message.from_user.id)
-    response = pt_service.clear(user_id, None)
+    response = pt_service.clear_user_sub_goods(user_id, None)
     await update.message.reply_text(text=response.to_message())
 
 
 async def untrack(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.message.from_user.id)
     good_name = update.message.text
-    response = pt_service.clear(user_id, good_name)
+    response = pt_service.clear_user_sub_goods(user_id, good_name)
     await update.message.reply_text(text=response.to_message())
     return ConversationHandler.END
 
