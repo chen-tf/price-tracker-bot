@@ -1,5 +1,7 @@
+import asyncio
 import logging
 import os
+import threading
 
 from flask import Flask, Response, render_template, request
 
@@ -15,6 +17,8 @@ lotify_client = get_lotify_client()
 logger = logging.getLogger("app")
 
 app = Flask(__name__, template_folder=template_dir)
+
+telegram_event_loop = asyncio.new_event_loop()
 
 
 @app.route("/", methods=["GET"])
@@ -36,13 +40,37 @@ def subscribe():
 # required hook endpoint to get the data from telegram
 @app.route("/webhook/" + pt_config.BOT_TOKEN, methods=["POST", "GET"])
 def webhook_handler():
-    logger.info(f"Before {request=}")
+    logger.info(f"Before webhook_handler {request=}")
     if request.method == "POST":
-        pt_bot.consume_request(request)
-    logger.info(f"After {request=}")
+        asyncio.set_event_loop(telegram_event_loop)
+        telegram_event_loop.run_until_complete(pt_bot.consume_request(request))
+    logger.info(f"After webhook_handler {request=}")
     return Response("OK", status=200)
 
 
-if __name__ == "__main__":
+class FlaskAppThread(threading.Thread):
+    def run(self) -> None:
+        run_web_app()
+
+
+def run_web_app():
     port = int(os.environ.get("PORT", "8443"))
     app.run("127.0.0.1", port)
+
+
+async def run_bot():
+    await pt_bot.application.bot.set_webhook(url=pt_config.WEBHOOK_URL + "webhook/" + pt_config.BOT_TOKEN)
+    async with pt_bot.application:
+        await pt_bot.application.initialize()
+        await pt_bot.application.start()
+        run_web_app()
+        await pt_bot.application.stop()
+
+
+if __name__ == "__main__":
+    if pt_config.TELEGRAM_BOT_MODE == "polling":
+        flask_app_thread = FlaskAppThread()
+        flask_app_thread.start()
+        pt_bot.application.run_polling()
+    else:
+        asyncio.run(run_bot())
