@@ -10,6 +10,29 @@ from pt_error import ExceedLimitedSizeException
 from repository.entity import GoodInfo, UserSubGood, UserSubGoodState
 
 
+class TestFindUserSubGoods(TestCase):
+    def setUp(self) -> None:
+        self.fake_find_all_by_user_id_and_state = \
+            patch('repository.user_sub_good_repository.find_all_by_user_id_and_state').start()
+
+    def test_enable_state(self):
+        self._given_user_enabled_sub_goods()
+
+        actual = pt_service.find_user_sub_goods('user-test')
+
+        self.fake_find_all_by_user_id_and_state.assert_has_calls([mock.call('user-test', UserSubGoodState.ENABLE)])
+        self.assertEqual(len(actual.user_sub_goods), 1)
+
+    def test_disable_state(self):
+        actual = pt_service.find_user_sub_goods('user-test')
+
+        self.fake_find_all_by_user_id_and_state.assert_has_calls([mock.call('user-test', UserSubGoodState.ENABLE)])
+        self.assertEqual(len(actual.user_sub_goods), 0)
+
+    def _given_user_enabled_sub_goods(self):
+        self.fake_find_all_by_user_id_and_state.return_value = [UserSubGood(state=UserSubGoodState.ENABLE)]
+
+
 class TestClearUserSubGoods(TestCase):
     def setUp(self) -> None:
         self.fake_find_all_by_user_id_and_state = \
