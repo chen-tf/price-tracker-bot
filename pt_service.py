@@ -133,7 +133,7 @@ def find_user_sub_goods(user_id: str) -> UserSubGoodsResponse:
 
 
 def clear_user_sub_goods(user_id: str, good_name: str = None) -> ClearSubGoodResponse:
-    user_sub_goods = find_user_sub_goods_contains_name(user_id, good_name)
+    user_sub_goods = _find_user_sub_goods_contains_name(user_id, good_name)
 
     for user_sub_good in user_sub_goods:
         user_sub_good.state = UserSubGoodState.DISABLE
@@ -143,7 +143,7 @@ def clear_user_sub_goods(user_id: str, good_name: str = None) -> ClearSubGoodRes
     return ClearSubGoodResponse(removed_good_names)
 
 
-def find_user_sub_goods_contains_name(user_id, good_name):
+def _find_user_sub_goods_contains_name(user_id, good_name):
     user_sub_goods = user_sub_good_repository.find_all_by_user_id_and_state(user_id, UserSubGoodState.ENABLE)
     not_clear_all = good_name is not None
     if not_clear_all:
