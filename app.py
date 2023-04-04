@@ -58,7 +58,7 @@ def run_web_app():
     app.run("127.0.0.1", port)
 
 
-class TelegramBotThread(threading.Thread):
+class TelegramBotWebhookThread(threading.Thread):
     def run(self) -> None:
         async def run_bot():
             await pt_bot.application.bot.set_webhook(url=pt_config.WEBHOOK_URL + "webhook/" + pt_config.BOT_TOKEN)
@@ -71,11 +71,13 @@ class TelegramBotThread(threading.Thread):
         asyncio.run(run_bot())
 
 
+if pt_config.TELEGRAM_BOT_MODE != "polling":
+    TelegramBotWebhookThread().start()
+
 if __name__ == "__main__":
     if pt_config.TELEGRAM_BOT_MODE == "polling":
         flask_app_thread = FlaskAppThread()
         flask_app_thread.start()
         pt_bot.application.run_polling()
     else:
-        TelegramBotThread().start()
         run_web_app()
