@@ -101,24 +101,21 @@ def _handle_redundant_good_info(good_info: GoodInfo) -> bool:
     return False
 
 
-def disable_not_active_user_sub_good() -> None:
-    try:
-        for user in user_repository.find_all_by_state(UserState.ENABLE):
-            _disable_not_active_user_sub_good_handler(user)
-    except Exception as ex:
-        logger.error(ex, exc_info=True)
-
-
-def _disable_not_active_user_sub_good_handler(user: User) -> None:
+def disable_blocked_user_data() -> None:
     import pt_bot
+    blocked_users = filter(lambda u: pt_bot.is_blocked_by_user(u.chat_id),
+                           user_repository.find_all_by_state(UserState.ENABLE))
+    for user in blocked_users:
+        _disable_user_and_sub_goods(user)
 
-    if pt_bot.is_blocked_by_user(user.chat_id):
-        user.state = UserState.DISABLE
-        common_repository.merge(user)
-        user_sub_goods = user_sub_good_repository.find_all_by_user_id_and_state(user.id, UserSubGoodState.ENABLE)
-        for user_sub_good in user_sub_goods:
-            user_sub_good.state = UserSubGoodState.DISABLE
-            common_repository.merge(user_sub_good)
+
+def _disable_user_and_sub_goods(user):
+    user.state = UserState.DISABLE
+    common_repository.merge(user)
+    user_sub_goods = user_sub_good_repository.find_all_by_user_id_and_state(user.id, UserSubGoodState.ENABLE)
+    for user_sub_good in user_sub_goods:
+        user_sub_good.state = UserSubGoodState.DISABLE
+        common_repository.merge(user_sub_good)
 
 
 def update_user_line_token(user_id: str, line_notify_token: str) -> None:

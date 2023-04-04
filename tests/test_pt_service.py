@@ -7,7 +7,35 @@ import pytest
 import pt_config
 import pt_service
 from pt_error import ExceedLimitedSizeException
-from repository.entity import GoodInfo, UserSubGood, UserSubGoodState, User
+from repository.entity import GoodInfo, UserSubGood, UserSubGoodState, User, UserState
+
+
+class TestDisableBlockedUserData(TestCase):
+    def setUp(self) -> None:
+        self.fake_is_blocked_by_user = patch('pt_bot.is_blocked_by_user').start()
+        self.fake_user_find_all_by_state = patch('repository.user_repository.find_all_by_state').start()
+        self.fake_user_sub_good_find_all_by_state = \
+            patch('repository.user_sub_good_repository.find_all_by_user_id_and_state').start()
+        self.fake_merge = patch('repository.common_repository.merge').start()
+
+    def test_blocked(self):
+        self.fake_user_find_all_by_state.return_value = [User(state=UserState.ENABLE)]
+        self.fake_is_blocked_by_user.return_value = True
+        self.fake_user_sub_good_find_all_by_state.return_value = [UserSubGood(state=UserSubGoodState.ENABLE)]
+
+        pt_service.disable_blocked_user_data()
+
+        self.assertEqual(self.fake_merge.call_count, 2)
+        self.assertEqual(self.fake_merge.call_args_list[0].args[0].state, UserState.DISABLE)
+        self.assertEqual(self.fake_merge.call_args_list[1].args[0].state, UserSubGoodState.DISABLE)
+
+    def test_unblocked(self):
+        self.fake_user_find_all_by_state.return_value = [User(state=UserState.ENABLE)]
+        self.fake_is_blocked_by_user.return_value = False
+
+        pt_service.disable_blocked_user_data()
+
+        self.fake_merge.assert_not_called()
 
 
 class TestUpdateUserLineToken(TestCase):
