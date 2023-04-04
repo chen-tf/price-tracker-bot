@@ -162,10 +162,6 @@ def reg_user(user_id, chat_id):
     common_repository.merge(user)
 
 
-def get_good_info(good_id) -> GoodInfo:
-    return pt_momo.find_good_info(good_id)
-
-
 def add_user_sub_good(user_id: str, url: str) -> UserAddGoodResponse:
     _ensure_user_maximum_sub_goods(user_id)
     good_info = pt_momo.find_good_info(url=url)
