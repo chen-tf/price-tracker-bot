@@ -58,13 +58,17 @@ def run_web_app():
     app.run("127.0.0.1", port)
 
 
-async def run_bot():
-    await pt_bot.application.bot.set_webhook(url=pt_config.WEBHOOK_URL + "webhook/" + pt_config.BOT_TOKEN)
-    async with pt_bot.application:
-        await pt_bot.application.initialize()
-        await pt_bot.application.start()
-        run_web_app()
-        await pt_bot.application.stop()
+class TelegramBotThread(threading.Thread):
+    def run(self) -> None:
+        async def run_bot():
+            await pt_bot.application.bot.set_webhook(url=pt_config.WEBHOOK_URL + "webhook/" + pt_config.BOT_TOKEN)
+            async with pt_bot.application:
+                await pt_bot.application.initialize()
+                await pt_bot.application.start()
+                while True:
+                    dummy = 1
+
+        asyncio.run(run_bot())
 
 
 if __name__ == "__main__":
@@ -73,4 +77,5 @@ if __name__ == "__main__":
         flask_app_thread.start()
         pt_bot.application.run_polling()
     else:
-        asyncio.run(run_bot())
+        TelegramBotThread().start()
+        run_web_app()
