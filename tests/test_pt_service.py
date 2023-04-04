@@ -7,7 +7,21 @@ import pytest
 import pt_config
 import pt_service
 from pt_error import ExceedLimitedSizeException
-from repository.entity import GoodInfo, UserSubGood, UserSubGoodState
+from repository.entity import GoodInfo, UserSubGood, UserSubGoodState, User
+
+
+class TestUpdateUserLineToken(TestCase):
+    def setUp(self) -> None:
+        self.fake_user_find_one = patch('repository.user_repository.find_one').start()
+        self.fake_merge = patch('repository.common_repository.merge').start()
+
+    def test_update_user_line_token(self):
+        self.fake_user_find_one.return_value = User()
+
+        pt_service.update_user_line_token(user_id='user-test', line_notify_token='line-token-test')
+
+        self.fake_merge.assert_called_once()
+        self.assertEqual(self.fake_merge.call_args[0][0].line_notify_token, 'line-token-test')
 
 
 class TestFindUserSubGoods(TestCase):
