@@ -9,8 +9,8 @@ load_dotenv(dotenv_path=env_path, verbose=True)
 
 TELEGRAM_BOT_MODE = os.getenv("TELEGRAM_BOT_MODE", "polling")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-MOMO_URL = "https://m.momoshop.com.tw/"
-MOMO_GOOD_URI = "goods.momo"
+MOMO_URL = "https://www.momoshop.com.tw/"
+MOMO_GOOD_URI = "goods/GoodsDetail.jsp"
 USER_AGENT = "Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/W.X.Y.Z Mobile Safari/537.36 (compatible; AdsBot-Google-Mobile; +http://www.google.com/mobile/adsbot.html)"
 
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
