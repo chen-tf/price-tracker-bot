@@ -2,7 +2,7 @@ import logging
 import random
 import re
 import time
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse
 
 import requests
 from bs4 import BeautifulSoup
@@ -12,6 +12,8 @@ import pt_error
 from repository.entity import GoodInfoStockState, GoodInfo, GoodInfoState
 
 logger = logging.getLogger("momo")
+session = requests.Session()
+session.mount('https://', requests.adapters.HTTPAdapter(pool_connections=10, pool_maxsize=10))
 
 
 def find_good_info(good_id=None, url: str = None) -> GoodInfo:
@@ -56,8 +58,7 @@ def _parse_good_id_from_url(url: str):
     try:
         if "https://momo.dm" in url:
             match = re.search("https.*momo.dm.*", url)
-            response = requests.request(
-                "GET",
+            response = session.get(
                 match.group(0),
                 headers={"user-agent": pt_config.USER_AGENT},
                 timeout=(10, 15),
@@ -80,7 +81,7 @@ def _get_good_info_from_momo(i_code=None):
     result = None
     try:
         params = {"i_code": i_code}
-        response = requests.get(
+        response = session.get(
             pt_config.momo_good_url(),
             params=params,
             headers={"user-agent": pt_config.USER_AGENT,
