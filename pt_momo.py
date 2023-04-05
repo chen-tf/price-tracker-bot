@@ -64,9 +64,7 @@ def _parse_good_id_from_url(url: str):
             )
             url = response.url
         result = urlparse(url)
-        query = parse_qs(result.query)
-        if "i_code" in query and len(query["i_code"]) >= 1:
-            good_id = str(query["i_code"][0])
+        good_id = re.search(r'i_code=(\d+)', result.query).group(1)
     finally:
         if good_id is None:
             raise pt_error.NotValidMomoURLException
@@ -90,8 +88,7 @@ def _get_good_info_from_momo(i_code=None):
                                "image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
                      "accept-encoding": "gzip, deflate, br",
                      "accept-language": "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7",
-                     "referer": "https://m.momoshop.com.tw/main.momo",
-                     "X-Forwarded-For": "1.174.206.255"},
+                     "referer": "https://m.momoshop.com.tw/main.momo"},
             timeout=pt_config.MOMO_REQUEST_TIMEOUT,
         )
         result = response.text
