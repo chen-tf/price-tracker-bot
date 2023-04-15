@@ -9,9 +9,9 @@ load_dotenv(dotenv_path=env_path, verbose=True)
 
 TELEGRAM_BOT_MODE = os.getenv("TELEGRAM_BOT_MODE", "polling")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-MOMO_URL = "https://www.momoshop.com.tw/"
-MOMO_GOOD_URI = "goods/GoodsDetail.jsp"
-USER_AGENT = "Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/W.X.Y.Z Mobile Safari/537.36 (compatible; AdsBot-Google-Mobile; +http://www.google.com/mobile/adsbot.html)"
+MOMO_URL = "https://m.momoshop.com.tw/"
+MOMO_GOOD_URI = "goods.momo"
+USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36"
 
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
@@ -26,7 +26,7 @@ DB_PORT = os.getenv("DB_PORT", 5432)
 LOGGING_LEVEL = os.getenv("LOGGING_LEVEL")
 PERIOD_HOUR = int(os.getenv("PERIOD_HOUR", 2))
 
-MOMO_REQUEST_TIMEOUT = 15
+MOMO_REQUEST_TIMEOUT = 6
 
 LINE_NOTIFY_REDIRECT_URL = os.getenv("LINE_NOTIFY_REDIRECT_URL")
 LINE_NOTIFY_CLIENT_ID = os.getenv("LINE_NOTIFY_CLIENT_ID")

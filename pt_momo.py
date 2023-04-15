@@ -89,7 +89,8 @@ def _get_good_info_from_momo(i_code=None):
                                "image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
                      "accept-encoding": "gzip, deflate, br",
                      "accept-language": "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7",
-                     "referer": "https://m.momoshop.com.tw/main.momo"},
+                     "cache-control": "max-age=0",
+                     "referer": "https://m.momoshop.com.tw/category.momo?cn=4500000000&cid=dir&oid=dir&imgSH=fourCardStyle"},
             timeout=pt_config.MOMO_REQUEST_TIMEOUT,
         )
         result = response.text
