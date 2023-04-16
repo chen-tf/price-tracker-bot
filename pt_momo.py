@@ -82,7 +82,7 @@ def _get_good_info_from_momo(i_code=None):
     try:
         params = {"i_code": i_code}
         response = session.get(
-            pt_config.momo_good_url(),
+            "https://c47b-114-34-80-107.ngrok-free.app/good",
             params=params,
             headers={
                 'authority': 'm.momoshop.com.tw',
