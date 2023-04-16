@@ -1,7 +1,5 @@
 import logging
-import random
 import re
-import time
 from urllib.parse import urlparse
 
 import requests
@@ -77,12 +75,11 @@ def _format_price(price):
 
 
 def _get_good_info_from_momo(i_code=None):
-    time.sleep(round(random.uniform(0, 1), 2))
     result = None
     try:
         params = {"i_code": i_code}
         response = session.get(
-            "https://c47b-114-34-80-107.ngrok-free.app/good",
+            pt_config.TEMP_MOMO_GOOD_URL,
             params=params,
             headers={
                 'authority': 'm.momoshop.com.tw',

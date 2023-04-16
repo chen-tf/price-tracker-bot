@@ -12,6 +12,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 MOMO_URL = "https://m.momoshop.com.tw/"
 MOMO_GOOD_URI = "goods.momo"
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36"
+TEMP_MOMO_GOOD_URL = "https://c47b-114-34-80-107.ngrok-free.app/good"
 
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
