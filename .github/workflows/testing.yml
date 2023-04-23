@@ -24,5 +24,7 @@ jobs:
           pip install pipenv
           pipenv install --dev
       - name: Run Tests
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
         run: |
           pipenv run pytest tests -v
