@@ -11,6 +11,7 @@ on:
 jobs:
   CI:
     runs-on: ubuntu-latest
+    environment: test
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -23,6 +24,5 @@ jobs:
           pip install pipenv
           pipenv install --dev
       - name: Run Tests
-        environment: test
         run: |
           pipenv run pytest tests -v
