@@ -1,0 +1,41 @@
+name: Python Job
+
+on:
+  schedule:
+    - cron: "0 */4 * * *"
+
+jobs:
+  run-python:
+    runs-on: ubuntu-latest
+    environment: beta
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9.12
+
+      - name: Install pipenv and dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pipenv
+          pipenv install --dev
+
+      - name: Run Python command
+        run: pipenv run python pt_scheduler.py
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_USER: ${{ secrets.DB_USER }}
+          LOGGING_LEVEL: ${{ secrets.LOGGING_LEVEL }}
+          TELEGRAM_BOT_MODE: ${{ secrets.TELEGRAM_BOT_MODE }}
+          LINE_NOTIFY_REDIRECT_URL: ${{ secrets.LINE_NOTIFY_REDIRECT_URL }}
+          LINE_NOTIFY_CLIENT_ID: ${{ secrets.LINE_NOTIFY_CLIENT_ID }}
+          LINE_NOTIFY_CLIENT_SECRET: ${{ secrets.LINE_NOTIFY_CLIENT_SECRET }}
+          PERIOD_HOUR: ${{ secrets.PERIOD_HOUR }}
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
