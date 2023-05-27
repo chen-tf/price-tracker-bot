@@ -3,9 +3,6 @@ name: Python Job
 on:
   schedule:
     - cron: "0 */4 * * *"
-  push:
-    branches:
-      - feature/schedule_job
 
 jobs:
   run-python:
