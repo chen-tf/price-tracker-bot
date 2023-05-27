@@ -1,4 +1,4 @@
-name: Python Job
+name: Refresh Price - Beta
 
 on:
   schedule:
