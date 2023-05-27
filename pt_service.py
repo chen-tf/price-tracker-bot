@@ -23,7 +23,7 @@ def sync_price() -> None:
     try:
         for good in good_repository.find_all_by_state(GoodInfoState.ENABLE):
             _price_sync_handler(good)
-            time.sleep(2)
+            time.sleep(1)
     except Exception as ex:
         logger.error(ex, exc_info=True)
     logger.info("Price syncer finished")
