@@ -21,9 +21,14 @@ lotify_client = get_lotify_client()
 def sync_price() -> None:
     logger.info("Price syncer started")
     try:
+        count = 1
         for good in good_repository.find_all_by_state(GoodInfoState.ENABLE):
             _price_sync_handler(good)
+            count += 1
             time.sleep(1)
+            if count >= 900:
+                time.sleep(120)
+                count = 0
     except Exception as ex:
         logger.error(ex, exc_info=True)
     logger.info("Price syncer finished")
