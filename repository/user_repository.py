@@ -15,7 +15,7 @@ def find_all_by_state(state: UserState, session: Session) -> List[User]:
 
 
 @with_session
-def find_all_user_by_good_id(good_id: str, session: Session):
+def find_all_user_by_good_id(good_id: str, session: Session) -> List[User]:
     return (
         session.query(User)
         .join(UserSubGood)

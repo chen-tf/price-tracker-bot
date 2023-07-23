@@ -79,13 +79,12 @@ def _price_sync_handler(good_info: GoodInfo) -> None:
                 new_good_info.stock_state == GoodInfoStockState.IN_STOCK
                 and good_info.stock_state == GoodInfoStockState.OUT_OF_STOCK
         ):
-            logger.info("%s is in stock!", new_good_info.name)
-            follow_good_chat_ids = user_repository.find_all_user_by_good_id(good_id)
-            msg = "%s\n目前已經可購買！！！\n\n%s"
-            for follow_good_chat_id in follow_good_chat_ids:
+            logger.info(f"{new_good_info.name} is in stock!")
+            follow_good_users = user_repository.find_all_user_by_good_id(good_id)
+            for user in follow_good_users:
                 pt_bot.send(
-                    msg % (new_good_info.name, good_page_url),
-                    str(follow_good_chat_id),
+                    f"{new_good_info.name}\n目前已經可購買！！！\n\n{good_page_url}",
+                    str(user.chat_id),
                 )
     except pt_error.GoodNotException:
         if new_good_info is not None:
