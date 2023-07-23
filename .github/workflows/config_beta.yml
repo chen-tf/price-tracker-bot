@@ -1,4 +1,4 @@
-name: deploy-beta
+name: config-beta
 
 on:
   push:

@@ -1,4 +1,4 @@
-name: deploy-beta
+name: config-prod
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 jobs:
   deploy-app-beta:
     name: config app config on Fly.io
-    environment: beta
+    environment: prod
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
