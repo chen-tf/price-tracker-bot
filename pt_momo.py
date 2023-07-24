@@ -15,11 +15,17 @@ session.mount('https://', requests.adapters.HTTPAdapter(pool_connections=10, poo
 
 
 def find_good_info(good_id=None, url: str = None) -> GoodInfo:
-    if url is not None:
+    if good_id is None and not _is_sharing_link(url):
         good_id = _parse_good_id_from_url(url)
 
-    logger.info(f"查詢商品資訊, good_id:{good_id}")
-    response = _get_good_info_from_momo(i_code=good_id)
+    if good_id is not None:
+        logger.info(f"查詢商品資訊 (good_id), good_id:{good_id}")
+        response = _get_good_info_from_momo(i_code=good_id)
+    else:
+        logger.info(f"查詢商品資訊 (link), url:{url}")
+        response_info = _parse_response_from_url(url)
+        good_id = response_info["good_id"]
+        response = response_info["response"].text
 
     if not response:
         raise pt_error.EmptyPageException
@@ -51,8 +57,24 @@ def generate_momo_url_by_good_id(good_id):
     return (pt_config.MOMO_URL + pt_config.MOMO_GOOD_URI + "?i_code=%s") % str(good_id)
 
 
+def _is_sharing_link(url: str):
+    return "https://momo.dm" in url
+
+
 def _parse_good_id_from_url(url: str):
     good_id = None
+    try:
+        result = urlparse(url)
+        good_id = re.search(r'i_code=(\d+)', result.query).group(1)
+    finally:
+        if good_id is None:
+            raise pt_error.NotValidMomoURLException
+        return good_id
+
+
+def _parse_response_from_url(url: str):
+    good_id = None
+    response = None
     try:
         if "https://momo.dm" in url:
             match = re.search("https.*momo.dm.*", url)
@@ -67,7 +89,7 @@ def _parse_good_id_from_url(url: str):
     finally:
         if good_id is None:
             raise pt_error.NotValidMomoURLException
-        return good_id
+        return {"good_id": good_id, "response": response}
 
 
 def _format_price(price):
