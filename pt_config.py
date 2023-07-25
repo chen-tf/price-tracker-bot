@@ -16,7 +16,7 @@ TEMP_MOMO_GOOD_URL = "https://f85e-114-34-80-107.ngrok-free.app/good"
 
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
-USER_SUB_GOOD_LIMITED = 11
+USER_SUB_GOOD_LIMITED = 20
 
 DB_HOST = os.getenv("DB_HOST")
 DB_NAME = os.getenv("DB_NAME")
