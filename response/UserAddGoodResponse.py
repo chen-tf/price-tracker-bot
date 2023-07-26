@@ -41,9 +41,9 @@ class UserAddGoodResponse(Exception):
         message = f'''
         ====
         成功新增
-        商品名稱:{self.user_sub_good.good_info.name}
-        價格:{self.user_sub_good.good_info.price}
-        狀態:{stock_state_string}
+        商品名稱：{self.user_sub_good.good_info.name}
+        價格：{self.user_sub_good.good_info.formatted_price()}
+        狀態：{stock_state_string}
         ====
         '''
         return inspect.cleandoc(message)

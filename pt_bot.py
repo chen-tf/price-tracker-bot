@@ -128,7 +128,7 @@ async def add_good(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def my_good(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.message.from_user.id)
     response = pt_service.find_user_sub_goods(user_id)
-    await update.message.reply_text(text=response.to_message())
+    await update.message.reply_html(text=response.to_message(), disable_web_page_preview=True)
 
 
 async def clear(update: Update, context: ContextTypes.DEFAULT_TYPE):

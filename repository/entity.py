@@ -47,6 +47,8 @@ class GoodInfo(Base):
     def __repr__(self):
         return f"GoodInfo<{self.id=}, {self.name=}, {self.price=}, {self.stock_state=}>"
 
+    def formatted_price(self) -> str:
+        return f"${self.price:,.0f}"
 
 class UserState(enum.IntEnum):
     DISABLE = 0
@@ -99,3 +101,6 @@ class UserSubGood(Base):
 
     def __repr__(self):
         return f"UserSubGood<{self.id=}, {self.price=}>"
+
+    def formatted_price(self) -> str:
+        return f"${self.price:,.0f}"
