@@ -4,19 +4,21 @@ import logging
 import os
 
 import telegram
-from telegram import Update
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.constants import ChatAction
 from telegram.ext import (
     CommandHandler,
     ConversationHandler,
     MessageHandler,
-    Application, ContextTypes, filters, )
+    Application, ContextTypes, filters, CallbackQueryHandler, )
 
 import pt_config
 import pt_error
 import pt_service
 from lotify_client import get_lotify_client
 from response.UserAddGoodResponse import UserAddGoodResponse
+
+CLEAR_USER_SUB_GOODS_TEXT = "請點選要刪除的商品"
 
 template_dir = os.path.abspath("templates")
 
@@ -70,15 +72,9 @@ def _register_bot_command_handler():
     clear_all_my_good_handler = CommandHandler("clearall", clearall)
     application.add_handler(clear_all_my_good_handler)
 
-    clear_conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("clear", clear)],
-        fallbacks=[CommandHandler("cancel", cancel)],
-        states={
-            UNTRACK: [MessageHandler(filters.TEXT & (~filters.COMMAND), untrack)],
-        },
-    )
+    application.add_handler(CallbackQueryHandler(clear_callback))
 
-    application.add_handler(clear_conv_handler)
+    application.add_handler(CommandHandler("clear", clear))
 
 
 @check_user_reg
@@ -132,8 +128,29 @@ async def my_good(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def clear(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(text="請輸入想取消收藏的商品名稱 (有包含就可以)\n輸入 /cancel 放棄動作")
-    return UNTRACK
+    reply_markup = _create_user_sub_goods_buttons(str(update.message.from_user.id))
+    await update.message.reply_text(CLEAR_USER_SUB_GOODS_TEXT, reply_markup=reply_markup)
+
+
+async def clear_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Parses the CallbackQuery and updates the message text."""
+    query = update.callback_query
+
+    await query.answer()
+
+    if CLEAR_USER_SUB_GOODS_TEXT in query.message.text:
+        user_id = str(query.from_user.id)
+        clear_response = pt_service.clear_user_sub_goods_by_id(user_id, query.data)
+        message = query.message.text + f"\n====\n{clear_response.removed_good_names[0]}\n===="
+        reply_markup = _create_user_sub_goods_buttons(user_id)
+        await query.edit_message_text(text=message, reply_markup=reply_markup)
+
+
+def _create_user_sub_goods_buttons(user_id: str) -> InlineKeyboardMarkup:
+    keyboard = []
+    for element in pt_service.find_user_sub_goods(user_id).user_sub_goods:
+        keyboard.append([InlineKeyboardButton(f"{element.good_info.name.strip()}", callback_data=f"{element.good_id}")])
+    return InlineKeyboardMarkup(keyboard)
 
 
 async def clearall(update: Update, context: ContextTypes.DEFAULT_TYPE):

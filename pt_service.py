@@ -146,6 +146,14 @@ def clear_user_sub_goods(user_id: str, good_name: str = None) -> ClearSubGoodRes
     return ClearSubGoodResponse(removed_good_names)
 
 
+def clear_user_sub_goods_by_id(user_id: str, good_id: str) -> ClearSubGoodResponse:
+    user_sub_good = user_sub_good_repository.find_one_by_user_id_and_good_id(user_id, good_id)
+    user_sub_good.state = UserSubGoodState.DISABLE
+    common_repository.merge(user_sub_good)
+    removed_good_names = [user_sub_good.good_info.name]
+    return ClearSubGoodResponse(removed_good_names)
+
+
 def _find_user_sub_goods_contains_name(user_id, good_name):
     user_sub_goods = user_sub_good_repository.find_all_by_user_id_and_state(user_id, UserSubGoodState.ENABLE)
     not_clear_all = good_name is not None
