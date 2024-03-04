@@ -16,6 +16,8 @@ eng = create_engine(
     pool_pre_ping=True,
     pool_recycle=1200,
 )
+print(
+    f"postgresql://{pt_config.DB_USER}:{pt_config.DB_PASSWORD}@{pt_config.DB_HOST}:{pt_config.DB_PORT}/{pt_config.DB_NAME}")
 Session = scoped_session(sessionmaker(bind=eng, expire_on_commit=False))
 Base = declarative_base()
 
