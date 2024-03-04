@@ -4,7 +4,6 @@ app = "price-tracker-beta"
 kill_signal = "SIGINT"
 primary_region = "ams"
 kill_timeout = 5
-processes = []
 
 [build]
 builder = "paketobuildpacks/builder:base"
