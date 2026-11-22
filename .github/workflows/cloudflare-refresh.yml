@@ -7,6 +7,10 @@ on:
         description: Check public momo connectivity without reading or changing user data
         type: boolean
         default: false
+      header_probe:
+        description: Compare public HTTP headers from one runner
+        type: boolean
+        default: false
       browser_probe:
         description: Diagnose public pages using headless Chromium
         type: boolean
@@ -33,6 +37,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Compare request headers
+        if: inputs.header_probe
+        run: node cloudflare/scripts/header_matrix.mjs
       - name: Install diagnostic browser
         if: inputs.browser_probe
         run: |
@@ -43,10 +50,10 @@ jobs:
         if: inputs.browser_probe
         run: node cloudflare/scripts/probe_browser.mjs
       - name: Check momo connectivity
-        if: inputs.probe && !inputs.browser_probe
+        if: inputs.probe && !inputs.browser_probe && !inputs.header_probe
         run: node cloudflare/scripts/refresh_prices.mjs --probe
       - name: Refresh tracked prices
-        if: ${{ !inputs.probe && !inputs.browser_probe }}
+        if: ${{ !inputs.probe && !inputs.browser_probe && !inputs.header_probe && !inputs.header_probe }}
         env:
           WORKER_URL: ${{ secrets.WORKER_URL }}
           SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
