@@ -1,0 +1,21 @@
+{
+  "name": "price-tracker-cloudflare",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --test-scheduled",
+    "test": "node --test test/*.test.js",
+    "check": "wrangler deploy --dry-run",
+    "deploy": "wrangler deploy",
+    "db:local": "wrangler d1 migrations apply price-tracker --local",
+    "db:remote": "wrangler d1 migrations apply price-tracker --remote"
+  },
+  "devDependencies": {
+    "miniflare": "5.20261119.0-beta",
+    "wrangler": "4.166.0"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  }
+}

@@ -34,6 +34,9 @@
 
 ## 簡介
 
+> 2026 年服務復原：Cloudflare Workers + D1 + Cron，搭配公開 GitHub Actions 免費查價。舊資料已遷移核對，
+> 請見 [Cloudflare 部署與復原說明](cloudflare/README.md)。
+
 price-tracker-bot is a telegram bot that can trace the price on [momoshop](https://www.momoshop.com.tw "momoshop").
 
 ### Demo Bot
@@ -84,7 +87,7 @@ git clone https://github.com/chen-tf/price-tracker-bot.git
 - 加入 [Telegram](https://web.telegram.org/)
 - 在對話視窗內呼叫 [@BotFather](https://t.me/botfather)，依照提示建立一個機器人，取得建立的 Telegram bot 的 Token
   - [Creating a new bot](https://core.telegram.org/bots/features#creating-a-new-bot)
-  - Token Sample：`110201543:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw`
+  - Token Sample：`<YOUR_TELEGRAM_BOT_TOKEN>`
 
 ### 在本機端運行
 

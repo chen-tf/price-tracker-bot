@@ -1,0 +1,35 @@
+name: Refresh prices on Cloudflare
+
+on:
+  workflow_dispatch:
+    inputs:
+      probe:
+        description: Check public momo connectivity without reading or changing user data
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-price-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Check momo connectivity
+        if: inputs.probe
+        run: node cloudflare/scripts/refresh_prices.mjs --probe
+      - name: Refresh tracked prices
+        if: ${{ !inputs.probe }}
+        env:
+          WORKER_URL: ${{ secrets.WORKER_URL }}
+          SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
+        run: node cloudflare/scripts/refresh_prices.mjs

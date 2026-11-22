@@ -1,9 +1,7 @@
 name: deploy-beta
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   deploy-app-beta:

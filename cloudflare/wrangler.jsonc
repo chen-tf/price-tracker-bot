@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "price-tracker-bot",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": true,
+  "observability": { "enabled": true },
+  "browser": { "binding": "BROWSER", "remote": true },
+  "triggers": { "crons": ["* * * * *"] },
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "price-tracker",
+    "database_id": "5e03351f-fd67-4543-a35d-840bd828fad5",
+    "migrations_dir": "migrations"
+  }]
+}

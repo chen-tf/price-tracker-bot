@@ -1,9 +1,7 @@
 name: deploy-prod
 
 on:
-  push:
-    tags:
-      - deploy-prod
+  workflow_dispatch:
 
 jobs:
   deploy-app-beta:

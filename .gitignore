@@ -136,3 +136,10 @@ postgres-data/
 
 # vscode
 .vscode/
+
+# Cloudflare runtime, local secrets, and private migration exports
+node_modules/
+.wrangler/
+.dev.vars
+cloudflare/backups/
+cloudflare/import.sql
