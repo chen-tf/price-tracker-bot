@@ -7,6 +7,10 @@ on:
         description: Check public momo connectivity without reading or changing user data
         type: boolean
         default: false
+      browser_probe:
+        description: Diagnose public pages using headless Chromium
+        type: boolean
+        default: false
       runner:
         description: Standard free runner for public repository
         type: choice
@@ -29,11 +33,20 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Install diagnostic browser
+        if: inputs.browser_probe
+        run: |
+          npm install --prefix cloudflare --no-save playwright
+          cd cloudflare
+          npx playwright install --with-deps chromium
+      - name: Diagnose browser connectivity
+        if: inputs.browser_probe
+        run: node cloudflare/scripts/probe_browser.mjs
       - name: Check momo connectivity
-        if: inputs.probe
+        if: inputs.probe && !inputs.browser_probe
         run: node cloudflare/scripts/refresh_prices.mjs --probe
       - name: Refresh tracked prices
-        if: ${{ !inputs.probe }}
+        if: ${{ !inputs.probe && !inputs.browser_probe }}
         env:
           WORKER_URL: ${{ secrets.WORKER_URL }}
           SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
