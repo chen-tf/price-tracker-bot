@@ -7,6 +7,11 @@ on:
         description: Check public momo connectivity without reading or changing user data
         type: boolean
         default: false
+      runner:
+        description: Standard free runner for public repository
+        type: choice
+        default: ubuntu-latest
+        options: [ubuntu-latest, macos-latest, windows-latest]
 
 permissions:
   contents: read
@@ -17,7 +22,7 @@ concurrency:
 
 jobs:
   refresh:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
