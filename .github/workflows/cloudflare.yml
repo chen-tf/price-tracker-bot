@@ -36,6 +36,7 @@ jobs:
         with:
           python-version: '3.15'
       - run: npm ci
+      - run: npm audit --audit-level=low
       - run: npm test
       - run: python -m unittest discover -s test -p 'test_*.py'
       - run: npm run db:local

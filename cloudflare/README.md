@@ -59,7 +59,7 @@ Webhook 先持久化再 ACK，重送去重。價格與 outbox 通知同 D1 batch
 
 ## 開發、測試與部署
 
-需要 Node.js 26 LTS、Python 3.15：
+需要 Node.js 26 LTS、Python 3.15；專案 `.npmrc` 固定公開 npm registry，避免沿用開發機的公司 registry。Wrangler 與 Miniflare 維持最新相容的官方版本組合，間接套件依其版本範圍鎖定，避免強制跨 major 覆寫工具內部依賴：
 
 ```bash
 cd cloudflare
