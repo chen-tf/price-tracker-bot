@@ -1,9 +1,9 @@
 import { fetchProduct, productUrl } from './momo.js';
-import { acceptPrices, dispatchPriceSync, trackedGoods } from './sync.js';
+import { acceptPrices, pollPrices, trackedGoods } from './sync.js';
 
 const now = () => Math.floor(Date.now() / 1000);
 const statement = (env, sql, ...args) => env.DB.prepare(sql).bind(...args);
-const help = '/my 顯示追蹤清單\n/add 貼上 momo 商品網址加入追蹤\n/clear 刪除指定商品\n/clearall 清空追蹤清單\n/cancel 放棄操作';
+const help = '/my 顯示追蹤清單\n/add 貼上 momo 商品網址加入追蹤\n/price 商品網址：即時查價\n/clear 刪除指定商品\n/clearall 清空追蹤清單\n/cancel 放棄操作';
 
 function messagePayload(text, extra = {}) {
   return { text, link_preview_options: { is_disabled: true }, ...extra };
@@ -86,6 +86,15 @@ async function planUpdate(env, update, getProduct) {
   const command = rawCommand.split('@')[0].toLowerCase();
   const argument = text.slice(rawCommand.length).trim();
   if (command === '/start' || command === '/help') respond(help);
+  else if (command === '/price') {
+    if (!argument) respond('請輸入 /price momo商品網址，即時查詢價格與庫存。');
+    else {
+      try {
+        const good = await getProduct(argument);
+        respond(`${good.name}\n即時價格：${good.price}\n${good.stock_state === 1 ? '目前可購買' : '目前缺貨'}\n${productUrl(good.id)}`);
+      } catch (error) { respond(error.message); }
+    }
+  }
   else if (command === '/line') respond('LINE Notify 已於 2025/03/31 終止服務，目前透過 Telegram 發送通知。');
   else if (command === '/cancel') {
     writes.push(statement(env, 'UPDATE "user" SET pending_action = NULL WHERE id = ?', userId));
@@ -103,7 +112,7 @@ async function planUpdate(env, update, getProduct) {
     } else {
       // One message per five products stays below Telegram's 4096-character limit.
       for (let i = 0; i < rows.results.length; i += 5) {
-        respond(rows.results.slice(i, i + 5).map(g => `${g.name}\n目前紀錄價格：${g.price}；加入時：${g.original_price}\n${productUrl(g.id)}`).join('\n\n'),
+        respond(rows.results.slice(i, i + 5).map(g => `${g.name}\n目前紀錄價格：${g.price}；加入時：${g.original_price}${g.last_error === 'product_unavailable' ? '\nmomo 目前查無商品，保留最後紀錄。' : ''}\n${productUrl(g.id)}`).join('\n\n'),
           {}, `list:${i}`);
       }
     }
@@ -142,10 +151,11 @@ export async function processOneUpdate(env, getProduct = input => fetchProduct(i
   const item = await statement(env, `UPDATE telegram_update SET lease_until = ?, attempts = attempts + 1
     WHERE id = (SELECT id FROM telegram_update WHERE status = 'pending' AND lease_until <= ?
       AND attempts < 10 ORDER BY id LIMIT 1) RETURNING *`, timestamp + 300, timestamp).first();
-  if (!item) return;
+  if (!item) return false;
   const writes = await planUpdate(env, JSON.parse(item.payload), getProduct);
   writes.push(statement(env, `UPDATE telegram_update SET status = 'done', payload = '{}' WHERE id = ?`, item.id));
   await env.DB.batch(writes);
+  return true;
 }
 
 export default {
@@ -163,15 +173,14 @@ export default {
       try {
         const health = await statement(env, `SELECT
           (SELECT MAX(last_success) FROM good_info) AS last_price_success,
-          (SELECT used_ms FROM browser_budget WHERE day = date('now')) AS browser_ms_today,
-          (SELECT last_error FROM sync_job ORDER BY slot DESC LIMIT 1) AS dispatch_error,
-          (SELECT COUNT(*) FROM good_info g WHERE g.state = 1 AND (g.last_success IS NULL OR g.last_success < unixepoch() - 28800)
+          (SELECT COUNT(*) FROM good_info WHERE state = 1 AND last_error = 'product_unavailable') AS unavailable_products,
+          (SELECT COUNT(*) FROM good_info g WHERE g.state = 1 AND COALESCE(g.last_error, '') != 'product_unavailable' AND (g.last_success IS NULL OR g.last_success < unixepoch() - 28800)
             AND EXISTS (SELECT 1 FROM user_sub_good s JOIN "user" u ON u.id = s.user_id
               WHERE s.good_id = g.id AND s.state = 1 AND u.state = 1)) AS stale_products,
-          (SELECT COUNT(*) FROM good_info WHERE state = 1 AND last_error IS NOT NULL) AS failed_products,
+          (SELECT COUNT(*) FROM good_info WHERE state = 1 AND last_error IS NOT NULL AND last_error != 'product_unavailable') AS failed_products,
           (SELECT COUNT(*) FROM telegram_update WHERE status = 'pending') AS pending_updates,
           (SELECT COUNT(*) FROM outbox WHERE sent_at IS NULL) AS pending_messages`).first();
-        return Response.json({ status: 'ok', ...health });
+        return Response.json({ status: 'ok', price_source: 'cloudflare-native-http', ...health });
       } catch { return Response.json({ status: 'database_unavailable' }, { status: 503 }); }
     }
     if (url.pathname !== '/webhook' || request.method !== 'POST') return new Response('Not found', { status: 404 });
@@ -203,14 +212,14 @@ export default {
 
   async scheduled(_controller, env, _ctx) {
     // A bounded amount of work per minute avoids a long-running VM or unbounded cron.
-    try { await processOneUpdate(env); } catch { console.error(JSON.stringify({ event: 'update_processing_failed' })); }
-    await dispatchPriceSync(env);
-    await drainOutbox(env);
+    let handled = true;
+    try { handled = await processOneUpdate(env); } catch { console.error(JSON.stringify({ event: 'update_processing_failed' })); }
+    if (!handled) await pollPrices(env);
+    await drainOutbox(env, fetch, 3);
     const cutoff = now() - 7 * 86400;
     await env.DB.batch([
       statement(env, "DELETE FROM telegram_update WHERE status = 'done' AND created_at < ?", cutoff),
       statement(env, 'DELETE FROM outbox WHERE sent_at IS NOT NULL AND created_at < ?', cutoff),
-      statement(env, 'DELETE FROM sync_job WHERE slot < ?', Math.floor(cutoff / 14400)),
     ]);
   },
 };

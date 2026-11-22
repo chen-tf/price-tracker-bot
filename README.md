@@ -34,7 +34,7 @@
 
 ## 簡介
 
-> 2026 年服務復原：Cloudflare Workers + D1 + Cron，搭配公開 GitHub Actions 免費查價。舊資料已遷移核對，
+> 2026 年服務復原：Cloudflare Workers + D1 + Cron 完整免費架構，支援即時查價。舊資料已遷移核對，
 > 請見 [Cloudflare 部署與復原說明](cloudflare/README.md)。
 
 price-tracker-bot is a telegram bot that can trace the price on [momoshop](https://www.momoshop.com.tw "momoshop").

@@ -1,4 +1,3 @@
 BOT_TOKEN=replace-with-botfather-token
 WEBHOOK_SECRET=replace-with-random-hex-secret
 SYNC_SECRET=replace-with-random-hex-secret
-GITHUB_TOKEN=repo-scoped-actions-write-token

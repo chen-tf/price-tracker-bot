@@ -1,28 +1,36 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 
-test('the real Workers HTMLRewriter parses both momo metadata formats', async t => {
-  const parser = readFileSync(new URL('../src/momo.js', import.meta.url), 'utf8');
+test('real workerd and D1 commit price notifications and enforce route authentication', async t => {
+  const root = new URL('../src/', import.meta.url);
   const runtime = new Miniflare(convertV4MiniflareOptions({
-    name: 'parser-test',
-    modules: true,
-    compatibilityDate: '2026-11-01',
-    script: `${parser}\nexport default { async fetch(request) {
-      const html = await request.text();
-      return Response.json(await fetchProduct('123', async () => new Response(html)));
-    } };`,
+    name: 'worker-test', compatibilityDate: '2026-11-01',
+    modules: ['worker.js', 'sync.js', 'momo.js', 'links.js', 'momo-api.js'].map(name => ({
+      type: 'ESModule', path: fileURLToPath(new URL(name, root)), contents: readFileSync(new URL(name, root), 'utf8'),
+    })),
+    d1Databases: ['DB'], bindings: { SYNC_SECRET: 'test-secret', WEBHOOK_SECRET: 'webhook-secret' },
   }));
   t.after(() => runtime.dispose());
-  const fixtures = [
-    `<meta property="og:title" content="商品 &amp; 特價"><meta property="product:price:amount" content="1,234"><meta property="product:availability" content="in stock">`,
-    `<script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","name":"商品 & 特價","offers":{"price":1234,"availability":"https://schema.org/InStock"}}</script>`,
-    `<script type="application/ld+json">{"@graph":[{"@type":"Product","name":"商品 & 特價","offers":[{"price":1234,"availability":"https://schema.org/InStock"}]}]}</script>`,
-  ];
-  for (const html of fixtures) {
-    const response = await runtime.dispatchFetch('https://local.test/', { method: 'POST', body: html });
-    assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), { id: '123', name: '商品 & 特價', price: 1234, stock_state: 1 });
+  const db = await runtime.getD1Database('DB');
+  const migrations = new URL('../migrations/', import.meta.url);
+  for (const name of readdirSync(migrations).filter(f => f.endsWith('.sql')).sort()) {
+    for (const sql of readFileSync(new URL(name, migrations), 'utf8').split(';').filter(s => s.trim())) await db.prepare(sql).run();
   }
+  await db.batch([
+    db.prepare(`INSERT INTO "user"(id,chat_id) VALUES ('10','10')`),
+    db.prepare(`INSERT INTO good_info(id,name,price,stock_state) VALUES ('123','商品',1000,0)`),
+    db.prepare(`INSERT INTO user_sub_good(id,user_id,good_id,price) VALUES ('s','10','123',1000)`),
+  ]);
+  assert.equal((await runtime.dispatchFetch('https://test/internal/tracked-goods')).status, 401);
+  const response = await runtime.dispatchFetch('https://test/internal/prices', { method: 'POST',
+    headers: { Authorization: 'Bearer test-secret' }, body: JSON.stringify({ run_id: '1', goods: [
+      { id: '123', name: '商品', price: 900, stock_state: 1, observed_at: Math.floor(Date.now() / 1000) },
+    ] }) });
+  assert.equal(response.status, 200);
+  assert.equal((await db.prepare('SELECT price FROM good_info').first()).price, 900);
+  assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM outbox').first()).n, 1);
+  assert.equal((await runtime.dispatchFetch('https://test/health')).status, 200);
 });

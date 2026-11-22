@@ -1,48 +1,58 @@
-# 免費方案服務復原
+# Cloudflare 免費方案服務
 
 正式 bot：[@momo_price_tracker_bot](https://t.me/momo_price_tracker_bot)
 
-## 架構與原因
+## 架構與修復
 
-Telegram → Cloudflare Workers → D1。Cloudflare Cron 每分鐘處理待辦與通知，並每四小時啟動一次公開 GitHub repository 的標準免費 Actions runner 查價。Runner 使用 Node.js 呼叫 momo 公開價格與庫存 API，透過具獨立 secret 的內部端點上傳；不需 momo 會員帳號或 cookie。
+Telegram → Cloudflare Workers → D1。Cloudflare Cron 每分鐘處理到期商品與通知，不依賴常駐 VM、Supabase、GitHub 定時排程、Browser Run 或付費代理。
 
-Workers 的直接 HTTP 出口被 momo 回覆 403。Browser Run 可以讀商品頁，但 Free 每日只有 10 分鐘，無法負擔原有商品量每四小時全量查價。因此批次查價使用公開 repo 免費 Actions，Browser Run 只處理新增商品，應用程式每日限制 9 分鐘並預留每次呼叫額度，額度不足時提示稍後重試。
+原 Supabase 正式庫暫停、GitHub 查價 workflow 因不活躍停用；Fly 健康檢查只回固定 OK，無法判斷業務是否正常。momo 403 經固定出口逐項比較，確認 `User-Agent: price-tracker-bot/1.0` 可讓 Workers 原生 fetch 直接取得價格與庫存。詳見 [header 對照證據](docs/momo-headers-2026-11-22.md)。
 
-保留 `/start`、`/add`、貼網址、`/my`、`/clear`、`/clearall`、`/cancel`；私人清單限定本人，最多追蹤 20 件商品。價格變更且低於加入時價格會通知；缺貨轉有貨也通知。抓價失敗保留原價格，下一輪重試。LINE Notify 已於 2025-03-31 終止，`/line` 說明改用 Telegram。
+## Telegram 功能
+
+- `/start`、`/help`：指令說明。
+- `/price 商品網址`：當下查詢 momo 名稱、售價與庫存，不變更追蹤或加入時價格。
+- `/add 商品網址` 或直接貼網址：以當下價格加入追蹤；支援舊 i_code、新 /product/ID 與 momo.dm 分享轉址。
+- `/my`：顯示原有追蹤清單、最後紀錄價格與加入時價格。
+- `/clear`、`/clearall`、`/cancel`：刪除或取消操作。
+
+每位使用者最多追蹤 20 件商品；私人清單與刪除限定本人。LINE Notify 已於 2025-03-31 終止，`/line` 說明改用 Telegram。
+
+正常商品每四小時重新到期，每分鐘最多八件，約能負擔 1920 件持續啟用商品。積壓、錯誤或大量指令會延長實際間隔；負載超過能力時不自動升級方案。
+
+價格改變且低於該使用者加入時價格便通知；缺貨轉有貨也通知。momo 明確回覆「查無商品」時保留原價格、清單與基準價，標示無法取得並改每日重試；其他抓價錯誤也不會以 0 覆蓋舊價。
 
 ## 舊資料
 
-2026-11-22 已免費恢復暫停的正式 Supabase，單一唯讀 snapshot 匯出三表，匯入新 D1 並逐筆比對全部遷移欄位一致：
+2026-11-22 已免費恢復原 Supabase，使用同一個唯讀 snapshot 匯出三表，匯入 D1 並逐筆比對全部遷移欄位一致：
 
-| 資料表 | 全部 | 啟用 |
+| 表 | 全部 | 啟用 |
 | --- | ---: | ---: |
 | user | 2698 | 1709 |
 | good_info | 5020 | 1710 |
 | user_sub_good | 5771 | 1859 |
 
-保留原 ID、Telegram chat ID、價格、追蹤基準價、庫存、狀態與時間。已終止的 LINE token 和未使用 checksum 不遷移。歷史異常商品 ID 的主外鍵也保留，查價時轉為正常商品編號。
+保留原 ID、Telegram chat ID、商品、追蹤基準價、庫存、狀態與時間。已終止的 LINE token 與未使用 checksum 不匯入。歷史異常商品 ID 保留原主外鍵，只於抓價與連結轉成正常商品編號。
 
-備份、核對報告與匯入 SQL 存於被 Git 忽略的 `backups/`、`import.sql`；內含私人資料，不得提交或放入 CI artifact。`scripts/convert_backup.py` 僅處理本機 CSV，檢查外鍵與型別後產生權限 0600 的 SQL，僅適用全新資料庫；不要重複匯入正式 D1。
+私人備份與核對報告在被 Git 忽略的 `backups/`，匯入 SQL 為 `import.sql`；不得提交或放入 CI artifact。`scripts/convert_backup.py` 檢查本機 CSV 的型別、唯一鍵、外鍵與筆數，通過後產生權限 0600 的 SQL，僅限全新資料庫，不可重複匯入正式 D1。
 
-## 免費額度
+原 Supabase 保留作為復原來源，正式 bot 不再讀寫它；若原專案日後自動暫停，不會影響新服務。
 
-- Cloudflare 必須維持 **Workers Free**，超額會拒絕服務；不升級、不購買代理服務。
-- Workers：每日 100,000 requests，10ms CPU／次、50 subrequests／次。
-- D1：每日 5,000,000 rows read、100,000 rows written；每 DB 500MB。本次匯入約寫入 49,311 rows。
-- Browser Run：帳號每日 10 分鐘；本程式保守限制 9 分鐘，其他使用同帳號的應用程式會共用額度。
-- GitHub Actions：repository 必須保持 public，使用標準 `ubuntu-latest` runner。改 private 或 larger runner 前須重新評估費用。
-- Actions 沒有使用 `schedule`，由 Cloudflare dispatch，避免原定時工作因 repo 60 天沒有活動而停用。
-- 免費服務與 momo 公開 API 都可能限流或調整，無法保證永不暫停。`/health` 的最後查價時間、失敗商品、積壓量及 dispatch error 用於檢查。
+## 免費額度與可靠性
 
-## 可靠性
+- Cloudflare 帳號保持 **Workers Free**：每日 100,000 requests，10ms CPU／次、50 subrequests／次。超額會拒絕服務，不啟用付費方案。
+- D1 Free：每日 5,000,000 rows read、100,000 rows written；每 DB 500MB。本次匯入約寫入 49,311 rows。
+- 不綁定 Browser Run，不消耗其每日 10 分鐘額度。
+- GitHub Actions 僅負責公開 repo 標準免費 runner 的 CI/CD 與手動診斷；正式查價不依賴 GitHub 排程，因此沒有 60 天不活躍停用問題。
+- Cron 避免同次處理積壓指令與批次查價，最多發三則訊息，以控制單次子請求數。單個 webhook 的即時回覆優先於降價通知。
 
-Webhook 先寫 D1 再 ACK，重送不重複處理。批次價格與 outbox 通知原子提交，過期或重送上傳不重複建立通知；加入時價格維持各使用者原始基準。
+Webhook 先持久化再 ACK，重送去重。價格與 outbox 通知同 D1 batch 原子提交，過期或重送資料不重複建立提醒。Telegram 429／暫時錯誤重試，403 停用已封鎖 bot 的使用者與追蹤。Telegram sendMessage 沒有冪等鍵，接收成功但本地成功紀錄遺失時，仍可能重複發送。
 
-指令回覆優先於價格通知。Telegram 429／暫時錯誤重試，403 停用已封鎖 bot 的使用者與追蹤。通知為至少一次發送：Telegram 已接收但成功紀錄未寫入時，仍可能重複。每分鐘最多處理一筆更新、六則訊息，積壓會逐步消化。更新最多自動處理十次，未完成資料留待調查。已送通知、已完成更新與 dispatch 工作保留七天。
+更新最多自動處理十次，未完成仍留待調查。已完成更新與已送通知保留七天。大量復原通知會分批消化，指令回覆優先。
 
-`GET /health` 不含私人資料；`last_price_success` 過舊、`stale_products` 或 `failed_products` 大於零表示查價不完整，HTTP 200 僅代表資料庫可用。
+`GET /health` 可查看最後查價成功時間、查無商品數、失敗商品、過期商品與積壓量，不回傳私人資料。HTTP 200 只代表 D1 可用，仍須檢查最後成功時間與失敗數。免費服務與 momo 公開介面可能調整，無法保證永不暫停。
 
-## 本機驗證與部署
+## 開發、測試與部署
 
 需要 Node.js 24、Python 3.9+：
 
@@ -56,32 +66,25 @@ npm run check
 node scripts/refresh_prices.mjs --probe
 ```
 
-複製 `.dev.vars.example` 到 `.dev.vars`，透過安全輸入填入 secrets；不要印在命令、Git 或 CI 日誌。`npm run check` 只打包，`db:local` 只改本機 D1。
+測試包含真實 workerd／D1 的價格與通知提交、Webhook 驗證、私人清單、個別基準價、重送／過期資料、即時查價不改追蹤、缺貨／降價、通知重試與封鎖用戶停用。
 
-正式 D1 已建立，`wrangler.jsonc` 綁定 `price-tracker`。Worker secrets：
+`.dev.vars.example` 複製為 `.dev.vars` 後安全填入憑證，禁止輸出到命令列、Git 或 CI 紀錄。Worker secrets：`BOT_TOKEN`、`WEBHOOK_SECRET`；`SYNC_SECRET` 供選用的手動補跑同步，正式 Cron 不需要外部 token。
 
-| Secret | 用途 |
-| --- | --- |
-| BOT_TOKEN | 正式 Telegram bot |
-| WEBHOOK_SECRET | Telegram webhook header 驗證 |
-| SYNC_SECRET | Runner 與 Worker 的獨立同步憑證 |
-| GITHUB_TOKEN | 僅此 repo 的 Actions write，用於 dispatch |
-
-GitHub repository secrets：`WORKER_URL`、`SYNC_SECRET`。
+D1 已建立並綁定在 `wrangler.jsonc`。部署：
 
 ```bash
 npm run db:remote
 npm run deploy
 ```
 
-部署後先確認 health、內部端點未授權回 401，執行 GitHub `Refresh prices on Cloudflare` 的 probe，再跑完整查價。確認資料可讀後設定 Telegram webhook `/webhook` 與 `secret_token`，保留 pending updates。使用原帳號驗證 `/start`、`/my`、新增與刪除。
+首次上線需先核對匯入資料，部署後確認 health 與未授權端點回 401；Telegram webhook 設為 Worker `/webhook`、附 secret_token，保留 pending updates。
 
-## CI/CD 與回復
+## CI/CD 與手動維運
 
-`.github/workflows/cloudflare.yml` 在相關 PR／main push 執行測試、本機 migrations、dry-run；main 手動 dispatch 才部署，使用 `cloudflare-production` environment 的 `CLOUDFLARE_ACCOUNT_ID`、`CLOUDFLARE_API_TOKEN`。首次建立 D1、匯入資料與 webhook 切換不隨 push 自動執行。
+`.github/workflows/cloudflare.yml` 在相關 PR／main push 測試、套用本機 migrations、dry-run；main 手動 dispatch 才部署。使用 `cloudflare-production` environment 的 `CLOUDFLARE_ACCOUNT_ID`、`CLOUDFLARE_API_TOKEN`。首次建立 D1、匯入資料與 webhook 切換不隨 push 自動執行。
 
-`.github/workflows/cloudflare-refresh.yml` 由 Cloudflare 每四小時 dispatch，也可手動執行；`probe=true` 僅測試公開商品，不讀寫使用者資料。禁止同時啟用舊排程。
+`.github/workflows/cloudflare-refresh.yml` 只提供手動維運：預設 connectivity 讀公開測試商品；headers 執行 header 對照；refresh 透過 repository secrets `WORKER_URL`、`SYNC_SECRET` 全量補跑。不啟用舊排程。
 
-原 Fly 部署與查價 workflows 已改為手動，以免 push 重設 webhook。原 Supabase 保留，回復前須先處理 D1 上線後新增資料，不能直接用舊備份覆蓋。舊 webhook 設定含 token，只保存在本機私人備份。舊 Fly 資源若仍運行需另外停止，不能只因新架構免費便假設舊帳單已歸零。
+原 Fly 部署、查價及 Python checks 改為手動，避免 push 啟動舊環境或重設 webhook。舊 Supabase 與本機備份不刪除。回復舊環境前需處理 D1 上線後新增資料，不可直接覆蓋。
 
-參考：[Workers limits](https://developers.cloudflare.com/workers/platform/limits/)、[D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/)、[Browser Run pricing](https://developers.cloudflare.com/browser-rendering/pricing/)、[GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions)。
+參考：[Workers limits](https://developers.cloudflare.com/workers/platform/limits/)、[D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/)、[GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions)。

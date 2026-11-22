@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync, readdirSync } from 'node:fs';
 import worker, { drainOutbox, processOneUpdate } from '../src/worker.js';
-import { acceptPrices, trackedGoods } from '../src/sync.js';
+import { acceptPrices, trackedGoods, pollPrices, readPrices } from '../src/sync.js';
 import { parsePrice, parseStock } from '../scripts/refresh_prices.mjs';
-import { fetchProduct, fetchRenderedProduct, parseLink, parseMetadata } from '../src/momo.js';
+import { fetchProduct, parseLink } from '../src/momo.js';
 
 function setup(t) {
   const db = new DatabaseSync(':memory:');
@@ -50,19 +50,6 @@ function incoming(db, id, text, userId = 10, extra = {}) {
   return update;
 }
 
-test('metadata parses comma prices and stock; missing or zero prices never become a discount', () => {
-  assert.deepEqual(parseMetadata('123', { 'og:title': '商品', 'product:price:amount': '1,234', 'product:availability': 'in stock' }),
-    { id: '123', name: '商品', price: 1234, stock_state: 1 });
-  for (const price of ['', '0', '-10', 'NaN', '1.2']) {
-    assert.throws(() => parseMetadata('123', { 'og:title': '商品', 'product:price:amount': price, 'product:availability': 'in stock' }));
-  }
-  assert.throws(() => parseMetadata('123', { 'og:title': 'Access denied', 'product:price:amount': '123' }));
-});
-
-test('JSON-LD is accepted when OG metadata is absent', () => {
-  assert.equal(parseMetadata('123', {}, [{ '@type': 'Product', name: '商品', offers: { price: '999.00', availability: 'https://schema.org/OutOfStock' } }]).stock_state, 0);
-});
-
 test('only exact momo hosts are accepted, including on each redirect', async () => {
   for (const url of ['http://momo.dm/a', 'https://momo.dm.evil.test/a', 'https://evil.test/?x=https://momo.dm/a', 'https://x:m@momo.dm/a', 'https://momo.dm:8443/a']) {
     assert.throws(() => parseLink(url));
@@ -73,43 +60,6 @@ test('only exact momo hosts are accepted, including on each redirect', async () 
     return new Response('', { status: 302, headers: { location: 'https://127.0.0.1/private' } });
   }), /只接受/);
   assert.equal(calls, 1);
-});
-
-test('momo HTTP 403 is a retryable fetch failure', async () => {
-  await assert.rejects(fetchProduct('123', async () => new Response('Access denied', { status: 403 })), /HTTP 403/);
-});
-
-test('rendered product metadata is parsed without handling the large HTML in the Worker', async t => {
-  const { env, db } = setup(t);
-  let called = 0;
-  env.BROWSER = { async quickAction(action, options) {
-    called++;
-    assert.equal(action, 'scrape');
-    assert.equal(options.url, 'https://www.momoshop.com.tw/product/123');
-    return Response.json({ success: true, result: [{ results: Object.entries({
-      'og:title': '商品', 'product:price:amount': '1,111', 'product:availability': 'in stock',
-    }).map(([name, content]) => ({ attributes: [{ name: 'name', value: name }, { name: 'content', value: content }] })) }] },
-    { headers: { 'X-Browser-Ms-Used': '1719.6' } });
-  } };
-  const product = await fetchProduct('https://www.momoshop.com.tw/product/123', undefined, env);
-  assert.equal(product.price, 1111);
-  assert.equal(called, 1);
-  assert.equal(db.prepare('SELECT used_ms FROM browser_budget').get().used_ms, 1720);
-});
-
-test('free browser budget refuses a call before it could consume the last allowance', async t => {
-  const { env, db } = setup(t);
-  db.prepare('INSERT INTO browser_budget(day, used_ms) VALUES (?, 530000)').run(new Date().toISOString().slice(0, 10));
-  env.BROWSER = { async quickAction() { assert.fail('Browser must not be called after the budget limit'); } };
-  await assert.rejects(fetchRenderedProduct('123', env), error => error.retryAt > Date.now() / 1000);
-  assert.equal(db.prepare('SELECT used_ms FROM browser_budget').get().used_ms, 530000);
-});
-
-test('an unknown failed browser request keeps its reservation', async t => {
-  const { env, db } = setup(t);
-  env.BROWSER = { async quickAction() { throw new Error('transport failed'); } };
-  await assert.rejects(fetchRenderedProduct('123', env), /transport failed/);
-  assert.equal(db.prepare('SELECT used_ms FROM browser_budget').get().used_ms, 15000);
 });
 
 test('duplicate Telegram updates produce one durable response', async t => {
@@ -290,4 +240,47 @@ test('runner parsers reject absent or ambiguous product data', () => {
   assert.equal(parseStock({ goodsStock: '0' }), 0);
   assert.equal(parseStock({ goodsStock: '1' }), 1);
   assert.throws(() => parseStock({}));
+});
+
+test('cloud poll updates due goods once and waits four hours before repeating', async t => {
+  const { db, env } = setup(t); seed(db);
+  let calls = 0;
+  const source = async (_url, options) => {
+    calls++; assert.equal(options.headers['User-Agent'], 'price-tracker-bot/1.0');
+    return Response.json(String(_url).endsWith('getInstantGoodsStatus')
+      ? { success: true, rtnGoods: { '123': { goodsName: '商品', goodsPriceModel: { basePrice: { price: '900' } } } } }
+      : { success: true, rtnGoodsData: { goodsStock: '1' } });
+  };
+  await pollPrices(env, source); await pollPrices(env, source);
+  assert.equal(calls, 2);
+  assert.equal(db.prepare('SELECT price FROM good_info').get().price, 900);
+  assert.ok(db.prepare('SELECT next_check FROM good_info').get().next_check >= Date.now() / 1000 + 14390);
+});
+
+test('unavailable goods retain history and user lists, with daily retries', async t => {
+  const { db, env } = setup(t); seed(db);
+  await acceptPrices(priceRequest([{ id: '123', unavailable: true, observed_at: Math.floor(Date.now() / 1000) }]), env);
+  const row = db.prepare('SELECT * FROM good_info').get();
+  assert.equal(row.price, 1000); assert.equal(row.last_error, 'product_unavailable');
+  assert.ok(row.next_check > Date.now() / 1000 + 86390);
+  incoming(db, 1, '/my'); await processOneUpdate(env);
+  assert.match(db.prepare('SELECT payload FROM outbox').get().payload, /查無商品/);
+});
+
+test('source failures preserve prices and malformed source results are rejected', async t => {
+  const { db, env } = setup(t); seed(db);
+  await pollPrices(env, async () => new Response('blocked', { status: 403 }));
+  assert.equal(db.prepare('SELECT price FROM good_info').get().price, 1000);
+  assert.match(db.prepare('SELECT last_error FROM good_info').get().last_error, /403/);
+  const bad = await readPrices(['123'], env, async () => Response.json({ goods: [{ id: '999' }] }));
+  assert.ok(bad[0].error);
+});
+
+test('instant price query displays live data without changing subscriptions or baselines', async t => {
+  const { db, env } = setup(t); seed(db);
+  incoming(db, 1, '/price https://www.momoshop.com.tw/product/123');
+  await processOneUpdate(env, async () => ({ id: '123', name: '即時商品', price: 950, stock_state: 1 }));
+  assert.match(db.prepare('SELECT payload FROM outbox').get().payload, /即時價格：950/);
+  assert.equal(db.prepare("SELECT price FROM user_sub_good WHERE user_id='10'").get().price, 1000);
+  assert.equal(db.prepare('SELECT price FROM good_info').get().price, 1000);
 });
