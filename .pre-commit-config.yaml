@@ -2,21 +2,21 @@
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
   - repo: https://github.com/psf/black
-    rev: 22.10.0
+    rev: 26.10.1
     hooks:
       - id: black
         name: black
   - repo: https://github.com/PyCQA/isort
-    rev: 5.10.1
+    rev: 9.0.2
     hooks:
       - id: isort
         name: isort
   - repo: https://github.com/PyCQA/pylint
-    rev: v2.15.5
+    rev: v4.1.4
     hooks:
       - id: pylint
         name: pylint
         entry: pylint
         language: system
         types: [python]
-        args: ["-rn", "-sn", "--rcfile=.pylintrc", "--fail-on=I"]
+        args: ["--errors-only", "--rcfile=.pylintrc"]

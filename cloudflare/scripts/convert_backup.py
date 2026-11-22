@@ -55,26 +55,71 @@ def convert(source):
 
     def add(table, columns, values):
         names = ", ".join('"' + column + '"' for column in columns)
-        statements.append(f'INSERT INTO "{table}" ({names}) VALUES ({", ".join(map(literal, values))});')
+        statements.append(
+            f'INSERT INTO "{table}" ({names}) VALUES ({", ".join(map(literal, values))});'
+        )
 
     for table in ("user", "good_info", "user_sub_good"):
         with (source / f"{table}.csv").open(encoding="utf-8-sig", newline="") as handle:
             rows = list(csv.DictReader(handle))
         counts[table] = len(rows)
         for index, row in enumerate(rows):
-            times = [row.get(key) or "1970-01-01 00:00:00" for key in ("create_time", "update_time")]
+            times = [
+                row.get(key) or "1970-01-01 00:00:00" for key in ("create_time", "update_time")
+            ]
             state = integer(row, "state", (0, 1), default=1)
             if table == "user":
-                add(table, ["id", "chat_id", "state", "create_time", "update_time"],
-                    [numeric_id(row, "id"), numeric_id(row, "chat_id"), state, *times])
+                add(
+                    table,
+                    ["id", "chat_id", "state", "create_time", "update_time"],
+                    [numeric_id(row, "id"), numeric_id(row, "chat_id"), state, *times],
+                )
             elif table == "good_info":
-                add(table, ["id", "name", "price", "stock_state", "state", "next_check", "create_time", "update_time"],
-                    [product_id(row, "id"), row["name"][:500], integer(row, "price"),
-                     integer(row, "stock_state", (0, 1, 2), default=1), state, index % 240 * 60, *times])
+                add(
+                    table,
+                    [
+                        "id",
+                        "name",
+                        "price",
+                        "stock_state",
+                        "state",
+                        "next_check",
+                        "create_time",
+                        "update_time",
+                    ],
+                    [
+                        product_id(row, "id"),
+                        row["name"][:500],
+                        integer(row, "price"),
+                        integer(row, "stock_state", (0, 1, 2), default=1),
+                        state,
+                        index % 240 * 60,
+                        *times,
+                    ],
+                )
             else:
-                add(table, ["id", "user_id", "good_id", "price", "is_notified", "state", "create_time", "update_time"],
-                    [row["id"], numeric_id(row, "user_id"), product_id(row, "good_id"), integer(row, "price"),
-                     integer(row, "is_notified", (0, 1), default=0), state, *times])
+                add(
+                    table,
+                    [
+                        "id",
+                        "user_id",
+                        "good_id",
+                        "price",
+                        "is_notified",
+                        "state",
+                        "create_time",
+                        "update_time",
+                    ],
+                    [
+                        row["id"],
+                        numeric_id(row, "user_id"),
+                        product_id(row, "good_id"),
+                        integer(row, "price"),
+                        integer(row, "is_notified", (0, 1), default=0),
+                        state,
+                        *times,
+                    ],
+                )
 
     sql = "\n".join(statements) + "\n"
     # An isolated SQLite database verifies every constraint and relationship before output.
@@ -92,7 +137,9 @@ def convert(source):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("source", type=Path, help="Directory with user.csv, good_info.csv, user_sub_good.csv")
+    parser.add_argument(
+        "source", type=Path, help="Directory with user.csv, good_info.csv, user_sub_good.csv"
+    )
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     sql, counts = convert(args.source)

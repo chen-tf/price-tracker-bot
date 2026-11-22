@@ -1,128 +1,134 @@
-import logging
+"""Read momo's public price API and resolve only explicitly allowed HTTPS hosts."""
+
 import re
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urljoin, urlsplit
 
 import requests
-from bs4 import BeautifulSoup
 
 import pt_config
 import pt_error
-from repository.entity import GoodInfoStockState, GoodInfo, GoodInfoState
+from repository.entity import GoodInfo, GoodInfoState, GoodInfoStockState
 
-logger = logging.getLogger("momo")
 session = requests.Session()
-session.mount('https://', requests.adapters.HTTPAdapter(pool_connections=10, pool_maxsize=10))
+API = "https://www.momoshop.com.tw/api/moecapp/"
+ALLOWED_HOSTS = {"momo.dm", "www.momoshop.com.tw", "m.momoshop.com.tw"}
 
 
-def find_good_info(good_id=None, url: str = None) -> GoodInfo:
-    if good_id is None and not _is_sharing_link(url):
-        good_id = _parse_good_id_from_url(url)
-
-    if good_id is not None:
-        logger.info(f"查詢商品資訊 (good_id), good_id:{good_id}")
-        response = _get_good_info_from_momo(i_code=good_id)
-    else:
-        logger.info(f"查詢商品資訊 (link), url:{url}")
-        response_info = _parse_response_from_url(url)
-        good_id = response_info["good_id"]
-        response = response_info["response"].text
-
-    if not response:
-        raise pt_error.EmptyPageException
-
-    soup = BeautifulSoup(response, "html.parser")
+def _validated_url(text):
+    matches = re.findall(r"https?://[^\s<>]+", text or "")
+    if len(matches) != 1:
+        raise pt_error.NotValidMomoURLException
+    url = matches[0]
     try:
-        if soup.find("meta", property="og:title") is None:
-            raise pt_error.GoodNotException
-        good_name = soup.find("meta", property="og:title")["content"]
-        price = _format_price(soup.find("meta", property="product:price:amount")["content"])
-        stock_state_str = soup.find("meta", property="product:availability")["content"]
-        if stock_state_str == "in stock":
-            stock_state = GoodInfoStockState.IN_STOCK
-        else:
-            stock_state = GoodInfoStockState.OUT_OF_STOCK
-        logger.info(f"""
-        商品名稱：{good_name}
-        價格：{price}
-        狀態：{stock_state_str}""")
-    except pt_error.GoodNotException as e:
-        raise e
-    except Exception:
-        logger.error(f"Parse good_info and catch an exception. good_id:{good_id}", exc_info=True)
-        raise pt_error.CrawlerParseException
-    return GoodInfo(id=good_id, name=good_name, price=price, stock_state=stock_state, state=GoodInfoState.ENABLE)
+        parsed = urlsplit(url)
+        if (
+            parsed.scheme != "https"
+            or parsed.hostname not in ALLOWED_HOSTS
+            or parsed.username
+            or parsed.password
+            or parsed.port not in (None, 443)
+        ):
+            raise ValueError("Invalid host")
+    except ValueError as error:
+        raise pt_error.NotValidMomoURLException from error
+    return url, parsed
+
+
+def _is_sharing_link(url):
+    return _validated_url(url)[1].hostname == "momo.dm"
+
+
+def _parse_good_id_from_url(url):
+    _, parsed = _validated_url(url)
+    product = re.fullmatch(r"/product/(\d+)/?", parsed.path)
+    candidates = [product.group(1)] if product else parse_qs(parsed.query).get("i_code", [])
+    if len(candidates) != 1 or not re.fullmatch(r"\d+", candidates[0]):
+        raise pt_error.NotValidMomoURLException
+    return candidates[0]
+
+
+def _resolve_sharing_link(url):
+    for _ in range(6):
+        url, parsed = _validated_url(url)
+        if parsed.hostname != "momo.dm":
+            return _parse_good_id_from_url(url)
+        # Validate each Location before making the next request. Requests' automatic
+        # redirects would otherwise allow a trusted short link to reach any host.
+        with session.get(
+            url,
+            headers={"User-Agent": pt_config.USER_AGENT},
+            allow_redirects=False,
+            timeout=pt_config.MOMO_REQUEST_TIMEOUT,
+        ) as response:
+            if response.status_code not in (301, 302, 303, 307, 308):
+                raise pt_error.NotValidMomoURLException
+            location = response.headers.get("Location")
+            if not location:
+                raise pt_error.NotValidMomoURLException
+            url = urljoin(url, location)
+    raise pt_error.NotValidMomoURLException
+
+
+def _api(method, payload):
+    with session.post(
+        API + method,
+        json={**payload, "host": "momoshop"},
+        headers={"User-Agent": pt_config.USER_AGENT},
+        allow_redirects=False,
+        timeout=pt_config.MOMO_REQUEST_TIMEOUT,
+    ) as response:
+        if response.status_code != 200:
+            raise pt_error.EmptyPageException
+        data = response.json()
+    if data.get("success") is not True:
+        raise pt_error.GoodNotException
+    return data
+
+
+def find_good_info(good_id=None, url=None) -> GoodInfo:
+    if good_id is None:
+        good_id = (
+            _resolve_sharing_link(url) if _is_sharing_link(url) else _parse_good_id_from_url(url)
+        )
+    good_id = str(good_id)
+    if not re.fullmatch(r"\d+", good_id):
+        raise pt_error.NotValidMomoURLException
+    data = _api(
+        "getInstantGoodsStatus",
+        {
+            "columnType": "",
+            "priceDescrip": True,
+            "implementTypes": ["price"],
+            "goodsCodes": [good_id],
+        },
+    )
+    try:
+        product = data["rtnGoods"][good_id]
+        name = product["goodsName"]
+        raw_price = str(product["goodsPriceModel"]["basePrice"]["price"]).replace(",", "")
+        if (
+            not isinstance(name, str)
+            or not name.strip()
+            or not re.fullmatch(r"\d+", raw_price)
+            or int(raw_price) <= 0
+        ):
+            raise ValueError("Missing name or price")
+        stock = _api(
+            "getGoodsRealTimeInfo",
+            {"goodsCode": good_id, "fsCode": "", "hour": "", "addressData": {}, "categoryCode": ""},
+        )["rtnGoodsData"]["goodsStock"]
+        if str(stock) not in {"0", "1"}:
+            raise ValueError("Unknown stock")
+        return GoodInfo(
+            id=good_id,
+            name=name,
+            price=int(raw_price),
+            stock_state=GoodInfoStockState(int(stock)),
+            state=GoodInfoState.ENABLE,
+        )
+    except (KeyError, TypeError, ValueError) as error:
+        raise pt_error.CrawlerParseException from error
 
 
 def generate_momo_url_by_good_id(good_id):
-    return (pt_config.MOMO_URL + pt_config.MOMO_GOOD_URI + "?i_code=%s") % str(good_id)
-
-
-def _is_sharing_link(url: str):
-    return "https://momo.dm" in url
-
-
-def _parse_good_id_from_url(url: str):
-    good_id = None
-    try:
-        result = urlparse(url)
-        good_id = re.search(r'i_code=(\d+)', result.query).group(1)
-    finally:
-        if good_id is None:
-            raise pt_error.NotValidMomoURLException
-        return good_id
-
-
-def _parse_response_from_url(url: str):
-    good_id = None
-    response = None
-    try:
-        if "https://momo.dm" in url:
-            match = re.search("https.*momo.dm.*", url)
-            response = session.get(
-                match.group(0),
-                headers={"user-agent": pt_config.USER_AGENT},
-                timeout=(10, 15),
-            )
-            url = response.url
-        result = urlparse(url)
-        logger.info(f"_parse_response_from_url {result}")
-        good_id = re.search(r'i_code=(\d+)', result.query).group(1)
-    except Exception:
-        logger.error(f"_parse_response_from_url catch an exception. url:{url}", exc_info=True)
-    finally:
-        if good_id is None:
-            raise pt_error.NotValidMomoURLException
-        return {"good_id": good_id, "response": response}
-
-
-def _format_price(price):
-    return int(str(price).strip().replace(",", ""))
-
-
-def _get_good_info_from_momo(i_code=None):
-    result = None
-    try:
-        params = {"i_code": i_code}
-        response = session.get(
-            pt_config.momo_good_url(),
-            params=params,
-            headers={
-                'authority': 'm.momoshop.com.tw',
-                'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-                'accept-language': 'zh-TW,zh;q=0.9',
-                'sec-ch-ua': '"Chromium";v="112", "Google Chrome";v="112", "Not:A-Brand";v="99"',
-                'sec-ch-ua-mobile': '?0',
-                'sec-ch-ua-platform': '"macOS"',
-                'sec-fetch-dest': 'document',
-                'sec-fetch-mode': 'navigate',
-                'sec-fetch-site': 'none',
-                'sec-fetch-user': '?1',
-                'upgrade-insecure-requests': '1',
-                'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36',
-            },
-            timeout=pt_config.MOMO_REQUEST_TIMEOUT,
-        )
-        result = response.text
-    except requests.exceptions.ReadTimeout:
-        logger.error(f"ReadTimeout i_code:{i_code}")
-    return result
+    return pt_config.momo_good_url() + "?i_code=" + str(good_id)

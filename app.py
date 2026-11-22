@@ -1,83 +1,49 @@
+"""Optional local Python interface. Production runs on Cloudflare Workers."""
+
 import asyncio
-import logging
-import os
+import hmac
 import threading
 
-from flask import Flask, Response, render_template, request
+from flask import Flask, Response, request
 
 import pt_bot
 import pt_config
-import pt_service
-from lotify_client import get_lotify_client
 
-template_dir = os.path.abspath("templates")
-
-lotify_client = get_lotify_client()
-
-logger = logging.getLogger("app")
-
-app = Flask(__name__, template_folder=template_dir)
-
+app = Flask(__name__)
 telegram_event_loop = asyncio.new_event_loop()
+telegram_lock = threading.Lock()
 
 
-@app.route("/", methods=["GET"])
+@app.get("/")
 def index():
-    # health check
     return Response("OK", status=200)
 
 
-@app.route("/line-subscribe", methods=["GET"])
+@app.get("/line-subscribe")
 def subscribe():
-    args = request.args
-    code = args["code"]
-    user_id = args["state"]
-    access_token = lotify_client.get_access_token(code=code)
-    pt_service.update_user_line_token(user_id=user_id, line_notify_token=access_token)
-    return render_template("success.html")
+    return Response("LINE Notify ended on 2025-03-31.", status=410)
 
 
-# required hook endpoint to get the data from telegram
-@app.route("/webhook/" + pt_config.BOT_TOKEN, methods=["POST", "GET"])
+@app.post("/webhook")
 def webhook_handler():
-    logger.info(f"Before webhook_handler {request=}")
-    if request.method == "POST":
-        asyncio.set_event_loop(telegram_event_loop)
-        telegram_event_loop.run_until_complete(pt_bot.consume_request(request))
-    logger.info(f"After webhook_handler {request=}")
+    secret = pt_config.WEBHOOK_SECRET
+    supplied = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+    if not secret or not hmac.compare_digest(supplied, secret):
+        return Response("Unauthorized", status=401)
+
+    async def consume():
+        async with pt_bot.get_application():
+            await pt_bot.consume_request(request)
+
+    # Flask can serve concurrent requests; the shared Telegram loop is serialized.
+    with telegram_lock:
+        telegram_event_loop.run_until_complete(consume())
     return Response("OK", status=200)
 
-
-class FlaskAppThread(threading.Thread):
-    def run(self) -> None:
-        run_web_app()
-
-
-def run_web_app():
-    port = int(os.environ.get("PORT", "8443"))
-    app.run("127.0.0.1", port)
-
-
-class TelegramBotWebhookThread(threading.Thread):
-    def run(self) -> None:
-        async def run_bot():
-            await pt_bot.application.bot.set_webhook(url=pt_config.WEBHOOK_URL + "webhook/" + pt_config.BOT_TOKEN)
-            async with pt_bot.application:
-                await pt_bot.application.initialize()
-                await pt_bot.application.start()
-                while True:
-                    dummy = 1
-
-        asyncio.run(run_bot())
-
-
-if pt_config.TELEGRAM_BOT_MODE != "polling":
-    TelegramBotWebhookThread().start()
 
 if __name__ == "__main__":
     if pt_config.TELEGRAM_BOT_MODE == "polling":
-        flask_app_thread = FlaskAppThread()
-        flask_app_thread.start()
-        pt_bot.application.run_polling()
+        pt_bot.get_application().run_polling()
     else:
-        run_web_app()
+        # Webhook registration is an explicit operator action, never an import side effect.
+        app.run("127.0.0.1", pt_config.PORT)

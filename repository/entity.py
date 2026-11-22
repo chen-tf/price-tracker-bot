@@ -2,7 +2,7 @@ import enum
 import uuid
 
 import sqlalchemy as db
-from sqlalchemy import func, types, Integer, String
+from sqlalchemy import Integer, String, func, types
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -40,8 +40,11 @@ class GoodInfo(Base):
     create_time = db.Column(db.DateTime, server_default=func.now())
     update_time = db.Column(db.DateTime, onupdate=func.now())
     checksum = db.Column(db.String(16), nullable=True)
-    stock_state = db.Column(IntEnum(GoodInfoStockState), default=GoodInfoStockState.IN_STOCK,
-                            comment="0: out of stock\n1: in stock")
+    stock_state = db.Column(
+        IntEnum(GoodInfoStockState),
+        default=GoodInfoStockState.IN_STOCK,
+        comment="0: out of stock\n1: in stock",
+    )
     state = db.Column(IntEnum(GoodInfoState), default=GoodInfoState.ENABLE)
 
     def __repr__(self):
@@ -49,6 +52,7 @@ class GoodInfo(Base):
 
     def formatted_price(self) -> str:
         return f"${self.price:,.0f}"
+
 
 class UserState(enum.IntEnum):
     DISABLE = 0
@@ -94,10 +98,11 @@ class UserSubGood(Base):
     create_time = db.Column(db.DateTime, server_default=func.now())
     update_time = db.Column(db.DateTime, onupdate=func.now())
     is_notified = db.Column(db.Boolean, default=False)
-    state = db.Column(IntEnum(UserSubGoodState), default=UserSubGoodState.ENABLE,
-                      comment="0: disable\n1: enable")
-    good_info = relationship('GoodInfo', foreign_keys=[good_id], lazy="joined")
-    user = relationship('User', foreign_keys=[user_id], lazy="joined")
+    state = db.Column(
+        IntEnum(UserSubGoodState), default=UserSubGoodState.ENABLE, comment="0: disable\n1: enable"
+    )
+    good_info = relationship("GoodInfo", foreign_keys=[good_id], lazy="joined")
+    user = relationship("User", foreign_keys=[user_id], lazy="joined")
 
     def __repr__(self):
         return f"UserSubGood<{self.id=}, {self.price=}>"

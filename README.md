@@ -1,289 +1,75 @@
 # price-tracker-bot
 
-[![linting: pylint](https://img.shields.io/badge/linting-pylint-yellowgreen)](https://github.com/PyCQA/pylint)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![Imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336)](https://pycqa.github.io/isort/)
+Telegram momo 降價與補貨通知：[@momo_price_tracker_bot](https://t.me/momo_price_tracker_bot)。
 
-## 目錄
+正式服務使用 **Cloudflare Workers Free + D1 Free + Cron**，不需要常駐主機、付費代理或 Supabase。舊使用者與追蹤清單已遷移保留。部署、免費額度、維運與資料復原請見 [Cloudflare 說明](cloudflare/README.md)。
 
-- [price-tracker-bot](#price-tracker-bot)
-  - [目錄](#目錄)
-  - [簡介](#簡介)
-    - [Demo Bot](#demo-bot)  
-  - [功能](#功能)
-  - [如何在本機端使用](#如何在本機端使用)
-    - [下載專案](#下載專案)
-    - [建立 Python 環境](#建立-python-環境)
-    - [建立 PostgreSQL](#建立-postgresql)
-    - [建立 Telegram bot](#建立-telegram-bot)
-    - [在本機端運行](#在本機端運行)
-  - [環境建置](#環境建置)
-    - [database](#database)
-    - [環境變數](#環境變數)
-    - [Telegram bot](#telegram-bot)
-    - [Bot 接收訊息方式](#bot-接收訊息方式)
-    - [fly.io](#flyio)
-    - [Supabase (Free Postgres Online)](#supabase-free-postgres-online)
-  - [執行方式](#執行方式)
-    - [Build simple local postgres env (optional)](#build-simple-local-postgres-env-optional)
-  - [機器人指令](#機器人指令)
-    - [Command menu](#command-menu)
-  - [如何貢獻](#如何貢獻)
-  - [貢獻作者](#貢獻作者)
-  - [授權條款](#授權條款)
+## 正式功能
 
-## 簡介
+- `/price 商品網址`：即時查詢價格與庫存，不改變追蹤基準價。
+- `/add 商品網址` 或直接貼網址：加入追蹤，每人最多 20 件。
+- `/my`：查看私人清單、最後紀錄價格與加入時價格。
+- `/clear`：選擇移除商品；`/clearall`：清空；`/cancel`：取消操作。
+- 商品降價且低於個人基準價、缺貨轉有貨時以 Telegram 通知。
 
-> 2026 年服務復原：Cloudflare Workers + D1 + Cron 完整免費架構，支援即時查價。舊資料已遷移核對，
-> 請見 [Cloudflare 部署與復原說明](cloudflare/README.md)。
+LINE Notify 已於 2025-03-31 終止；Fly 應用與部署流程已移除。原 Supabase 僅保留作復原來源。
 
-price-tracker-bot is a telegram bot that can trace the price on [momoshop](https://www.momoshop.com.tw "momoshop").
+## Cloudflare 開發
 
-### Demo Bot
-
-Telegram bot search [@momo_price_tracker_bot](https://t.me/momo_price_tracker_bot)
-
-## 功能
-
-- LINE 通知服務<br>
-  ![LINE 通知服務](https://i.imgur.com/DF9lOUR.jpg)
-- 降價通知
-  ![降價通知](https://i.imgur.com/CSLhRGW.png)
-- 上架通知
-  ![上架通知](https://i.imgur.com/jmfC9aH.png)
-- 收藏商品
-  ![收藏商品](https://i.imgur.com/Ns9uGiA.png)
-- 清空已收藏商品
-  ![清空已收藏商品](https://i.imgur.com/kVwJVri.png)
-- 顯示目前已收藏商品
-  ![顯示目前已收藏商品](https://i.imgur.com/l8dgUpj.png)
-  
-## 如何在本機端使用
-
-### 下載專案
-
-- 從 Github clone 此專案
+使用 Node.js 26 LTS 與 Python 3.15（離線備份轉換工具）。
 
 ```bash
-git clone https://github.com/chen-tf/price-tracker-bot.git 
+cd cloudflare
+npm ci
+npm run db:local
+npm run dev
 ```
 
-### 建立 Python 環境
+將 `.dev.vars.example` 複製成 `.dev.vars` 並在本機填入測試 bot 的 secrets。不要使用正式 bot 做本機 polling，也不要提交 secrets、資料匯出、私人備份或測試報告。
 
-- 安裝 Python，推薦版本 3.9
-  - [python.org](https://www.python.org/)
-- 在專案資料夾內，安裝相關套件
-  - `pip install -r requirements.txt`
+## 選用 Python 程式
 
-### 建立 PostgreSQL
-
-- 安裝 Docker
-  - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- 安裝 PostgreSQL 環境 
-  - 在專案資料夾內，執行 `docker-compose up`，創建並啟動 PostgreSQL 環境
-
-### 建立 Telegram bot
-
-- 加入 [Telegram](https://web.telegram.org/)
-- 在對話視窗內呼叫 [@BotFather](https://t.me/botfather)，依照提示建立一個機器人，取得建立的 Telegram bot 的 Token
-  - [Creating a new bot](https://core.telegram.org/bots/features#creating-a-new-bot)
-  - Token Sample：`<YOUR_TELEGRAM_BOT_TOKEN>`
-
-### 在本機端運行
-
-- 在專案資料夾內建立一個檔名為 `.env` 檔案，內容如下
-- 將 BOT_TOKEN 內容變更為建立 Telegram bot 時取得的 Token
-
-```text
-BOT_TOKEN = "{replace_me}"
-DB_HOST = "localhost"
-DB_NAME = "postgres"
-DB_PASSWORD = "postgres"
-DB_USER = "postgres"
-DB_PORT = 5432
-LOGGING_LEVEL = "INFO"
-TELEGRAM_BOT_MODE = "polling"
-```
-
-- 在專案資料夾內執行檔案
+Python 程式保留作本機開發與 PostgreSQL repository 範例；正式 Cloudflare 服務不依賴它。使用 **Python 3.15.2** 與 Pipenv 2026.11.0；所有依賴版本固定於 `Pipfile.lock`。
 
 ```bash
-python app.py
+python -m pip install pipenv==2026.11.0
+pipenv sync --dev
 ```
 
-### 新建立的Telegram聊天頻道中已有的內建指令
-```
-/my 顯示追蹤清單
-/clearall 清空全部追蹤清單
-/clear 刪除指定追蹤商品
-/add 後貼上momo商品連結可加入追蹤清單或是可以直接使用指令選單方便操作
-```
+以獨立測試 bot 與本機 PostgreSQL 設定 `.env`，環境變數如下：
 
----
-
-## 環境建置
-
-### Database
-
-- PostgreSQL 10<br>
-
-執行 sqls folder底下放置的SQL file，或者可以自行使用其他db migration 工具
-
-### 環境變數
-
-| 環境變數              | 說明                                                                |
-| --------------------- | ------------------------------------------------------------------- |
-| DB_HOST               | Database host                                                       |
-| DB_NAME               | Database name                                                       |
-| DB_USER               | Database user                                                       |
-| DB_PASSWORD           | Database user's password                                            |
-| BOT_TOKEN             | Telegram bot token                                                  |
-| WEBHOOK_URL(Optional) | For deploy your app to cloud provides |
-| PERIOD_HOUR                      | Resync latest good's price time period                                                                  |
-| TELEGRAM_BOT_MODE     | default: polling, [polling,webhook]                                 |
-
-### Telegram bot
-
-加入 [telegram botfather](https://t.me/botfather "telegram botfather")並建立一個機器人，取得 **token**
-，後續須設定環境變數 **BOT_TOKEN**
-
-### Bot 接收訊息方式
-
-設定環境變數 **TELEGRAM_BOT_MODE**
-
-- polling
-  測試使用上方便，不需要對外網址，效能上較webhook差
-- webhook
-  如果要在local 測試 webhook，可使用 [ngrok](https://ngrok.com/ "ngrok")
-
-### fly.io
-
-- [Run a Python App](https://fly.io/docs/languages-and-frameworks/python/)
-- [Install Flyctl and Login](https://fly.io/docs/languages-and-frameworks/python/#install-flyctl-and-login)
-- [Inside fly toml](https://fly.io/docs/languages-and-frameworks/python/#inside-fly-toml)
-- Procfile 一樣使用 `web: python3 app.py`
-- fly postgres
-  目前因為一些原因建議可以使用 Supabase Postgres
-
-This is indeed a timeout due to the fact that Fly.io put HAproxy in front of the PostgreSQL instance, and the HAproxy
-has a 30m timeout. (This was confirmed via email support with Fly.io)
-
-This means you will either want to a make sure your PostgreSQL adapter can deal with (or automatically) reconnects, or
-fire some kind of idle timer that runs a query at least once every 30 min, to keep the connection alive.
-
-環境變數可以設定至 fly.toml 中
-
-### Supabase (Free Postgres Online)
-
-- https://supabase.com/
-- [相關教學](https://flaviocopes.com/postgresql-supabase-setup/)
-
-### Linter
-
-使用 [isort](https://github.com/PyCQA/isort) (sort imports)
+| 變數 | 用途 |
+| --- | --- |
+| BOT_TOKEN | 本機測試 bot token |
+| DB_HOST、DB_NAME、DB_USER、DB_PASSWORD、DB_PORT | 本機 PostgreSQL，port 預設 5432 |
+| TELEGRAM_BOT_MODE | `polling`（預設）或 `webhook` |
+| WEBHOOK_SECRET | webhook 模式必填，與 Telegram secret_token 一致 |
+| PORT | Flask port，預設 8080 |
+| LOGGING_LEVEL | logging level |
 
 ```bash
-# cheat
-echo "$(git diff --name-only --diff-filter=ACMR HEAD *.py)" | xargs isort
-
-# usage - never use
-isort **/*.py
+docker compose up -d
+pipenv run python app.py
 ```
 
-使用 [black](https://github.com/psf/black) (formatter)
+Docker Compose 只供本機新資料庫，使用 PostgreSQL 18；資料存放於 `postgres-data-18/`。舊 `postgres-data/` 保留，不能直接掛載成新 major 的資料目錄，需先備份並以 PostgreSQL 官方升級流程處理。
+
+Python webhook 為 `POST /webhook`，驗證 `X-Telegram-Bot-Api-Secret-Token`；不再將 bot token 放進 URL。匯入模組不會註冊 webhook 或啟動背景執行緒；啟用 webhook 與對外 TLS 由操作者明確設定。本機 polling 會變更該 bot 的接收模式，務必使用獨立 bot。
+
+Python 支援原有追蹤與公開 API 查價；新舊商品編號自動對應、`/price` 與可靠 outbox 屬正式 Cloudflare 實作。
+
+## 品質與安全
+
+PR CI 執行完整 Python（含隔離 PostgreSQL container）與 Cloudflare workerd／D1 回歸測試、格式檢查、Pylint errors 與 pip-audit；測試使用合成設定，不讀取開發者 `.env`。本機可針對變更選跑測試：
 
 ```bash
-# cheat
-echo "$(git diff --name-only --diff-filter=ACMR HEAD *.py)" | xargs black
-
-# find py file which place would be reformatted 
-echo "$(git diff --name-only --diff-filter=ACMR HEAD *.py)" | xargs black --diff
-
-# use black for specific file
-black foo.py
-
-# usage - never use, it will reformat py file at all
-black *.py
+pipenv run pytest tests/test_momo_security.py tests/test_python_runtime.py
+cd cloudflare
+node --test --test-name-pattern='same-user|observations stay' test/worker.test.js
 ```
 
-使用 [pylint](https://github.com/PyCQA/pylint) (lint)
+使用 Black 與 isort 統一格式，設定在 `pyproject.toml`。Dependabot 每週檢查 Python、npm 與 GitHub Actions；Actions 固定 commit SHA。GitHub 公開儲存庫使用免費 CodeQL、secret scanning 與 push protection。請勿將私人資料或憑證放入 issue、PR、CI log 或 artifact。
 
-```bash
-# cheat
-echo "$(git diff --name-only --diff-filter=ACMR HEAD *.py)" | xargs pylint -sn
+## 授權
 
-# usage - never use, cause too many output
-pylint *.py
-```
-
-### pre-commit  
-  
-確認 pre-commit 是否已安裝至專案環境底下  
-  
-```bash  
-# check  
-pre-commit -V  
-  
-# install with requirements.txt  
-pip install -r requirements.txt  
-  
-# or directly install 
-pip install pre-commit  
-```  
-  
-將 pre-commit hook 安裝至專案裡的 .git/hooks 資料夾底下  
-  
-```bash  
-# init hook, will create .git/hooks/pre-commit  
-pre-commit install --install-hooks  
-```  
-  
-執行 git commit  
-  
-```bash  
-git commit -m 'feat: hello world'
-```  
-
-成功時畫面如下  
-  
-![succeful-pre-commit](https://i.imgur.com/1TNS07R.gif)  
-  
-失敗時，需要調整相對應的檔案，並重新將檔案加入 git 版控，再重新進行 commit  
-  
-![fail-pre-commit](https://i.imgur.com/Zo0RBxo.gif)
-
----
-
-## 機器人指令
-
-<br>對話輸入momo商品網址可直接加入追蹤
-
-- /start 顯示目前所支援的指令
-- /my 顯示目前所有追蹤物品清單，以及當下所記錄價格
-- /clear 清除目前所有追蹤物品清單
-
-### Command menu
-
-You need to say these to @BotFather.
-![](https://i.imgur.com/nskbZPo.png)
-
-Bot can show command menu
-![](https://i.imgur.com/aEHJECc.png)
-
-## 如何貢獻
-
-歡迎所有貢獻、提交錯誤報告、協助錯誤修復、文檔改進、功能增強和提供你的想法。
-
-你可以移至"Issue"選項並開始查看你認為有趣的問題。文檔下列出了許多問題，您可以從這裡開始。
-
-或者，您有了自己的想法，或者正在程式碼中尋找某些東西並認為“這可以改進”……您可以為此做點什麼！
-
-作為本項目的貢獻者和維護者，您應該遵守 price-tracker-bot 的行為準則。
-
-## 貢獻作者
-<a href = "https://github.com/chen-tf/price-tracker-bot/graphs/contributors">
-  <img src = "https://contrib.rocks/image?repo=chen-tf/price-tracker-bot"/>
-</a>
-
-## 授權條款
-[MIT](https://github.com/chen-tf/price-tracker-bot/blob/main/LICENSE) 
+[MIT](LICENSE)

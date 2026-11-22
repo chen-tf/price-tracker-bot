@@ -18,7 +18,7 @@ Telegram → Cloudflare Workers → D1。Cloudflare Cron 每分鐘處理到期�
 
 每位使用者最多追蹤 20 件商品；私人清單與刪除限定本人。LINE Notify 已於 2025-03-31 終止，`/line` 說明改用 Telegram。
 
-正常商品每四小時重新到期，每分鐘最多批次處理 10 件。排程優先處理指令與待送通知，查價與訊息投遞分開執行以控制免費 CPU 預算；積壓、錯誤或大量指令會延長實際間隔，負載超過能力時不自動升級方案。
+正常商品每四小時重新到期，每分鐘最多批次處理 10 件。每四分鐘保留三個查價分鐘，另一分鐘處理指令與最多三則通知，以控制免費 CPU 預算並避免訊息積壓阻斷查價；大量到期商品與錯誤會延長實際間隔，負載超過能力時不自動升級方案。
 
 同一商品換過 momo 編號時，讀取公開商品頁的結構化資料，驗證 offer URL 後取得新編號，再以新編號呼叫即時價格與庫存 API；對應存入 `source_id`，保留原追蹤主鍵與個人基準價。排程每批最多解析一次新舊編號，避免少數異常資料耗盡免費 subrequests。
 
@@ -53,13 +53,13 @@ Telegram → Cloudflare Workers → D1。Cloudflare Cron 每分鐘處理到期�
 
 Webhook 先持久化再 ACK，重送去重。價格與 outbox 通知同 D1 batch 原子提交，過期或重送資料不重複建立提醒。Telegram 429／暫時錯誤重試，403 停用已封鎖 bot 的使用者與追蹤。Telegram sendMessage 沒有冪等鍵，接收成功但本地成功紀錄遺失時，仍可能重複發送。
 
-更新最多自動處理十次，未完成仍留待調查。已完成更新與已送通知保留七天，每小時清理一次。大量復原通知會分批消化，指令回覆優先。
+同一使用者的更新依 ID 順序處理，其他使用者可並行；租約過期後的舊處理器不能提交。更新最多自動處理十次，耗盡重試且租約到期後標示失敗，讓後續指令繼續。取消追蹤會永久作廢尚未送出的商品通知，重新加入也不會復活舊通知；已開始傳送的 Telegram 請求可能完成。已完成更新與已送通知保留七天，每小時清理一次。大量復原通知會分批消化，指令回覆優先。
 
-`GET /health` 可查看最後查價成功時間、查無商品數、失敗商品、過期商品與積壓量，不回傳私人資料。HTTP 200 只代表 D1 可用，仍須檢查最後成功時間與失敗數。免費服務與 momo 公開介面可能調整，無法保證永不暫停。
+`GET /health` 僅以固定成本檢查 D1 存活。帶 `Authorization: Bearer <SYNC_SECRET>` 的 `GET /internal/health` 可查看最後查價成功時間、查無商品數、失敗商品、過期商品與積壓量，不回傳私人資料。HTTP 200 只代表 D1 可用，仍須檢查最後成功時間與失敗數。免費服務與 momo 公開介面可能調整，無法保證永不暫停。
 
 ## 開發、測試與部署
 
-需要 Node.js 24、Python 3.9+：
+需要 Node.js 26 LTS、Python 3.15；專案 `.npmrc` 固定公開 npm registry，避免沿用開發機的公司 registry。Wrangler 與 Miniflare 維持最新相容的官方版本組合，間接套件依其版本範圍鎖定，避免強制跨 major 覆寫工具內部依賴：
 
 ```bash
 cd cloudflare
@@ -90,6 +90,6 @@ npm run deploy
 
 `.github/workflows/cloudflare-refresh.yml` 只提供手動維運：預設 connectivity 讀公開測試商品；headers 執行 header 對照；refresh 只補到期商品，retry-errors 只重試實際錯誤，full-refresh 才全量補跑。透過 repository secrets `WORKER_URL`、`SYNC_SECRET` 同步，每 100 件共用價格請求、每 20 件提交 D1；正常補查不重跑尚未到期商品。不啟用舊排程。
 
-Fly 舊應用 `price-tracker` 已刪除，確認 0 台機器且無 Volume。原 Fly 部署、查價及 Python checks 改為手動，避免 push 啟動舊環境或重設 webhook。舊 Supabase 與本機備份不刪除。回復舊環境前需處理 D1 上線後新增資料，不可直接覆蓋。
+Fly 舊應用 `price-tracker` 已刪除，確認 0 台機器且無 Volume。原 Fly 部署與舊 PostgreSQL 查價 workflows 已退役，Python checks 使用獨立測試資料庫。舊 Supabase 與本機備份不刪除。回復舊環境前需處理 D1 上線後新增資料，不可直接覆蓋。
 
 參考：[Workers limits](https://developers.cloudflare.com/workers/platform/limits/)、[D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/)、[GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions)。
