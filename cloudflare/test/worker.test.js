@@ -506,3 +506,31 @@ test('the final expired add attempt cannot revive subscriptions after a later cl
     assert.equal(db.prepare("SELECT COUNT(*) n FROM good_info WHERE id='456'").get().n, 0);
   }
 });
+
+
+test('webhook sends one immediate reply and leaves remaining messages durable for cron', async t => {
+  const { db, env } = setup(t); seed(db);
+  incoming(db, 1, '/start', 20); await processOneUpdate(env);
+  let task;
+  const original = globalThis.fetch;
+  t.after(() => { globalThis.fetch = original; });
+  const sent = [];
+  globalThis.fetch = async (_url, options) => { sent.push(JSON.parse(options.body)); return Response.json({ ok: true }); };
+  const update = { update_id: 2, message: { from: { id: 10 }, chat: { id: 10, type: 'private' }, text: '/start' } };
+  await worker.fetch(new Request('https://test/webhook', { method: 'POST', body: JSON.stringify(update),
+    headers: { 'X-Telegram-Bot-Api-Secret-Token': 'local-secret' } }), env, { waitUntil(promise) { task = promise; } });
+  await task;
+  assert.equal(sent.length, 1);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM outbox WHERE sent_at IS NULL').get().n, 1);
+  await drainOutbox(env, globalThis.fetch, 3);
+  assert.equal(sent.length, 2);
+});
+
+test('registration rolls back with a failed command transaction', async t => {
+  const { db, env } = setup(t);
+  incoming(db, 1, '/start');
+  db.exec("CREATE TRIGGER reject_reply BEFORE INSERT ON outbox BEGIN SELECT RAISE(ABORT, 'failure'); END;");
+  await assert.rejects(processOneUpdate(env), /failure/);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM "user"').get().n, 0);
+  assert.equal(db.prepare('SELECT status FROM telegram_update').get().status, 'pending');
+});
