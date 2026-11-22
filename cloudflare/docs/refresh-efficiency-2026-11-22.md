@@ -17,9 +17,9 @@
 
 - [改造前全量紀錄](https://github.com/chen-tf/price-tracker-bot/actions/runs/44992170394)
 - [改造後全量紀錄](https://github.com/chen-tf/price-tracker-bot/actions/runs/44993774178)
-- [新版測試與正式部署](https://github.com/chen-tf/price-tracker-bot/actions/runs/44993588591)
+- [新版測試與正式部署](https://github.com/chen-tf/price-tracker-bot/actions/runs/44994243553)
 
-82 次批次寫入的 Workers tail 均為 outcome=ok，觀察到 CPU 最高 5ms。這是同步寫入請求的 CPU，不能當作整段來源查價的 CPU。另一次原生 Cron 查 20 件時觀察到 14ms，故正式排程降為每批 10 件；手動補查仍每批 100 件來源、20 件同步。網路等待時間也不等於計費 CPU 時間。
+82 次批次寫入的 Workers tail 均為 outcome=ok，觀察到 CPU 最高 5ms。這是同步寫入請求的 CPU，不能當作整段來源查價的 CPU。另一次原生 Cron 查 20 件時觀察到 14ms，故正式排程降為每批 10 件；手動補查仍每批 100 件來源、20 件同步。正式 Cron 再以 10 件有效商品實測，CPU 7ms、wall time 2608ms、outcome=ok。網路等待時間也不等於計費 CPU 時間。
 
 ## 減少不必要的工作
 
@@ -34,7 +34,7 @@
 
 ## 驗收
 
-- 24 個 Node 測試與 3 個 Python 匯入測試通過，包含 workerd／D1 實際交易、批次效率、下架後回架、來源失敗不覆蓋價格、新舊編號、私人訂閱與個人基準價。
+- 25 個 Node 測試與 3 個 Python 匯入測試通過，包含 workerd／D1 實際交易、批次效率、下架後回架、來源失敗不覆蓋價格、新舊編號、私人訂閱與個人基準價。
 - 10 件異常商品重試約 7 秒完成，D1 讀取 93 筆、寫入 29 筆。
 - Telegram /price 即時測試：商品 4811545 回 1111 元；舊編號 10213900 透過來源 14309374 回 7111 元，均顯示可購買。
 - 全量結束時 /health 為 failed_products=0、stale_products=0、pending_updates=0、pending_messages=0。
