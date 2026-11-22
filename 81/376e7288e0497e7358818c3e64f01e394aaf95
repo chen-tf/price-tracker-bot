@@ -1,0 +1,21 @@
+cloudflare/migrations/0006_ordered_updates.sql
+  s_80fe1ae900e884::t_85f520b59bd1e1 9-10
+cloudflare/test/worker.test.js
+  s_80fe1ae900e884::t_e7d84102a84ab5 477,488-508
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "81376e7288e0497e7358818c3e64f01e394aaf95",
+  "prompts": {},
+  "sessions": {
+    "s_80fe1ae900e884": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a2019e-d6f2-7dd0-9e59-7bb19a4f1490",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Chen Tim[ ChenTim ] <tim.tf.chen@gmail.com>"
+    }
+  }
+}
