@@ -1,5 +1,6 @@
 import { fetchProduct, productUrl } from './momo.js';
 import { acceptPrices, pollPrices, trackedGoods } from './sync.js';
+import { backToList, listPage, productDetail } from './presentation.js';
 
 const now = () => Math.floor(Date.now() / 1000);
 const statement = (env, sql, ...args) => env.DB.prepare(sql).bind(...args);
@@ -43,7 +44,10 @@ export async function drainOutbox(env, fetcher = fetch, limit = 6) {
     if (!item) break;
     attempted++;
     try {
-      await telegram(env, 'sendMessage', { ...JSON.parse(item.payload), chat_id: item.chat_id }, fetcher);
+      const { edit_message_id, ...payload } = JSON.parse(item.payload);
+      await telegram(env, edit_message_id ? 'editMessageText' : 'sendMessage', {
+        ...payload, chat_id: item.chat_id, ...(edit_message_id ? { message_id: edit_message_id } : {}),
+      }, fetcher);
       await statement(env, 'UPDATE outbox SET sent_at = ? WHERE id = ?', now(), item.id).run();
     } catch (error) {
       if (error.code === 403) {
@@ -77,14 +81,42 @@ async function planUpdate(env, update, getProduct) {
     ON CONFLICT(id) DO UPDATE SET chat_id = excluded.chat_id, state = 1, update_time = CURRENT_TIMESTAMP`,
   userId, String(message.chat.id)));
   const respond = (text, extra, suffix) => writes.push(reply(env, update.update_id, userId, text, extra, suffix));
+  const show = payload => {
+    const { text, ...extra } = payload;
+    respond(text, { ...extra, ...(callback?.message?.message_id ? { edit_message_id: callback.message.message_id } : {}) });
+  };
+  const subscriptions = () => statement(env, `SELECT g.*, s.price AS original_price FROM user_sub_good s
+    JOIN good_info g ON g.id = s.good_id WHERE s.user_id = ? AND s.state = 1 ORDER BY s.create_time, s.id`, userId).all();
   if (callback) {
-    if (/^(?:clear:)?\d+(?:\s+\/add)?$/.test(callback.data || '')) {
-      const goodId = callback.data.replace(/^clear:/, '');
+    const pageMatch = /^page:(\d{1,6})$/.exec(callback.data || '');
+    const action = /^(detail|refresh|remove):(\d+(?:\s+\/add)?):(\d{1,6})$/.exec(callback.data || '');
+    if (pageMatch) show(listPage((await subscriptions()).results, Number(pageMatch[1])));
+    else if (/^(?:clear:)?\d+(?:\s+\/add)?$/.test(callback.data || '') || action?.[1] === 'remove') {
+      const goodId = action ? action[2] : callback.data.replace(/^clear:/, '');
       writes.push(statement(env, `UPDATE outbox SET sent_at = -1 WHERE sent_at IS NULL AND user_id = ?
         AND subscription_id IN (SELECT id FROM user_sub_good WHERE user_id = ? AND good_id = ?)`, userId, userId, goodId));
       writes.push(statement(env, 'UPDATE user_sub_good SET state = 0, update_time = CURRENT_TIMESTAMP WHERE user_id = ? AND good_id = ?',
         userId, goodId));
-      respond('已移除該追蹤商品。');
+      if (action) show({ text: '已移除該追蹤商品。', reply_markup: backToList(Number(action[3])) });
+      else respond('已移除該追蹤商品。');
+    } else if (action) {
+      const [, kind, goodId, pageText] = action;
+      const page = Number(pageText);
+      const good = await statement(env, `SELECT g.*, s.price AS original_price FROM user_sub_good s
+        JOIN good_info g ON g.id = s.good_id WHERE s.user_id = ? AND s.state = 1 AND s.good_id = ?`, userId, goodId).first();
+      if (!good) show({ text: '這件商品已不在你的追蹤清單。', reply_markup: backToList(page) });
+      else if (kind === 'detail') show(productDetail(good, page));
+      else {
+        try {
+          const fresh = await getProduct(goodId);
+          show(productDetail({ ...good, ...fresh, id: good.id, last_success: now(), last_error: null }, page, true));
+        } catch (error) {
+          // Plain text error messages cannot introduce HTML from upstream failures.
+          show({ text: error.message, reply_markup: { inline_keyboard: [
+            [{ text: '返回商品詳情', callback_data: `detail:${goodId}:${page}` }], ...backToList(page).inline_keyboard,
+          ] } });
+        }
+      }
     }
     return writes;
   }
@@ -110,18 +142,13 @@ async function planUpdate(env, update, getProduct) {
     writes.push(statement(env, 'UPDATE "user" SET pending_action = ? WHERE id = ?', 'add', userId));
     respond('貼上 momo 商品網址加入追蹤，或輸入 /cancel。');
   } else if (command === '/my' || command === '/clear') {
-    const rows = await statement(env, `SELECT g.*, s.price AS original_price FROM user_sub_good s
-      JOIN good_info g ON g.id = s.good_id WHERE s.user_id = ? AND s.state = 1 ORDER BY s.create_time, s.id`, userId).all();
+    const rows = await subscriptions();
     if (!rows.results.length) respond('目前沒有追蹤商品。');
     else if (command === '/clear') {
       respond('請點選要刪除的商品', { reply_markup: { inline_keyboard: rows.results.map(g =>
         [{ text: g.name.slice(0, 60), callback_data: `clear:${g.id}` }]) } });
     } else {
-      // One message per five products stays below Telegram's 4096-character limit.
-      for (let i = 0; i < rows.results.length; i += 5) {
-        respond(rows.results.slice(i, i + 5).map(g => `${g.name}\n目前紀錄價格：${g.price}；加入時：${g.original_price}${g.last_error === 'product_unavailable' ? '\nmomo 目前查無商品，保留最後紀錄。' : ''}\n${productUrl(g.id)}`).join('\n\n'),
-          {}, `list:${i}`);
-      }
+      show(listPage(rows.results));
     }
   } else if (command === '/clearall') {
     writes.push(statement(env, 'UPDATE outbox SET sent_at = -1 WHERE sent_at IS NULL AND user_id = ? AND subscription_id IS NOT NULL', userId));
