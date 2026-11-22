@@ -16,6 +16,10 @@ def literal(value):
     return "'" + str(value).replace("'", "''") + "'"
 
 
+def identifier(value):
+    return '"' + str(value).replace('"', '""') + '"'
+
+
 def numeric_id(row, key):
     value = row[key]
     if not value.isdecimal() or not value.isascii():
@@ -54,9 +58,9 @@ def convert(source):
     counts = {}
 
     def add(table, columns, values):
-        names = ", ".join('"' + column + '"' for column in columns)
+        names = ", ".join(identifier(column) for column in columns)
         statements.append(
-            f'INSERT INTO "{table}" ({names}) VALUES ({", ".join(map(literal, values))});'
+            f'INSERT INTO {identifier(table)} ({names}) VALUES ({", ".join(map(literal, values))});'
         )
 
     for table in ("user", "good_info", "user_sub_good"):
