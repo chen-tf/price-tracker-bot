@@ -18,7 +18,7 @@ Telegram → Cloudflare Workers → D1。Cloudflare Cron 每分鐘處理到期�
 
 每位使用者最多追蹤 20 件商品；私人清單與刪除限定本人。LINE Notify 已於 2025-03-31 終止，`/line` 說明改用 Telegram。
 
-正常商品每四小時重新到期，每分鐘最多八件，約能負擔 1920 件持續啟用商品。積壓、錯誤或大量指令會延長實際間隔；負載超過能力時不自動升級方案。
+正常商品每四小時重新到期，每分鐘最多八件，扣除每小時維護分鐘，約能負擔 1888 件持續啟用商品。積壓、錯誤或大量指令會延長實際間隔；負載超過能力時不自動升級方案。
 
 價格改變且低於該使用者加入時價格便通知；缺貨轉有貨也通知。momo 明確回覆「查無商品」時保留原價格、清單與基準價，標示無法取得並改每日重試；其他抓價錯誤也不會以 0 覆蓋舊價。
 
@@ -48,7 +48,7 @@ Telegram → Cloudflare Workers → D1。Cloudflare Cron 每分鐘處理到期�
 
 Webhook 先持久化再 ACK，重送去重。價格與 outbox 通知同 D1 batch 原子提交，過期或重送資料不重複建立提醒。Telegram 429／暫時錯誤重試，403 停用已封鎖 bot 的使用者與追蹤。Telegram sendMessage 沒有冪等鍵，接收成功但本地成功紀錄遺失時，仍可能重複發送。
 
-更新最多自動處理十次，未完成仍留待調查。已完成更新與已送通知保留七天。大量復原通知會分批消化，指令回覆優先。
+更新最多自動處理十次，未完成仍留待調查。已完成更新與已送通知保留七天，每小時清理一次。大量復原通知會分批消化，指令回覆優先。
 
 `GET /health` 可查看最後查價成功時間、查無商品數、失敗商品、過期商品與積壓量，不回傳私人資料。HTTP 200 只代表 D1 可用，仍須檢查最後成功時間與失敗數。免費服務與 momo 公開介面可能調整，無法保證永不暫停。
 
@@ -85,6 +85,6 @@ npm run deploy
 
 `.github/workflows/cloudflare-refresh.yml` 只提供手動維運：預設 connectivity 讀公開測試商品；headers 執行 header 對照；refresh 透過 repository secrets `WORKER_URL`、`SYNC_SECRET` 全量補跑。不啟用舊排程。
 
-原 Fly 部署、查價及 Python checks 改為手動，避免 push 啟動舊環境或重設 webhook。舊 Supabase 與本機備份不刪除。回復舊環境前需處理 D1 上線後新增資料，不可直接覆蓋。
+Fly 舊應用 `price-tracker` 已刪除，確認 0 台機器且無 Volume。原 Fly 部署、查價及 Python checks 改為手動，避免 push 啟動舊環境或重設 webhook。舊 Supabase 與本機備份不刪除。回復舊環境前需處理 D1 上線後新增資料，不可直接覆蓋。
 
 參考：[Workers limits](https://developers.cloudflare.com/workers/platform/limits/)、[D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/)、[GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions)。

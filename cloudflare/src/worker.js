@@ -210,12 +210,14 @@ export default {
     return new Response('OK');
   },
 
-  async scheduled(_controller, env, _ctx) {
+  async scheduled(controller, env, _ctx) {
     // A bounded amount of work per minute avoids a long-running VM or unbounded cron.
     let handled = true;
     try { handled = await processOneUpdate(env); } catch { console.error(JSON.stringify({ event: 'update_processing_failed' })); }
-    if (!handled) await pollPrices(env);
+    const maintenance = new Date(controller.scheduledTime ?? Date.now()).getUTCMinutes() === 0;
+    if (!handled && !maintenance) await pollPrices(env);
     await drainOutbox(env, fetch, 3);
+    if (!maintenance) return;
     const cutoff = now() - 7 * 86400;
     await env.DB.batch([
       statement(env, "DELETE FROM telegram_update WHERE status = 'done' AND created_at < ?", cutoff),
