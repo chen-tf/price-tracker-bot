@@ -342,3 +342,24 @@ test('twenty price updates use two SQL statements and only due or failed goods a
   assert.equal((await (await trackedGoods(new Request('https://test/?due=1'), env)).json()).goods.length, 0);
   assert.equal((await (await trackedGoods(new Request('https://test/?errors=1'), env)).json()).goods[0].id, '123');
 });
+
+
+test('native scheduled polling bounds each invocation to ten due products', async t => {
+  const { db, env } = setup(t); seed(db);
+  for (let i = 1; i < 20; i++) {
+    db.prepare('INSERT INTO good_info(id,name,price,stock_state) VALUES (?, ?,1000,1)').run(String(i), '商品');
+    db.prepare('INSERT INTO user_sub_good(id,user_id,good_id,price) VALUES (?, ?, ?,1000)').run(`budget-${i}`, '10', String(i));
+  }
+  let requested = [];
+  await pollPrices(env, async (url, options) => {
+    if (String(url).endsWith('getInstantGoodsStatus')) {
+      requested = JSON.parse(options.body).goodsCodes;
+      return Response.json({ success: true, rtnGoods: Object.fromEntries(requested.map(id => [id,
+        { goodsName: '商品', goodsPriceModel: { basePrice: { price: '1000' } } }])) });
+    }
+    return Response.json({ success: true, rtnGoodsData: { goodsStock: '1' } });
+  });
+  assert.equal(requested.length, 10);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM good_info WHERE last_success IS NOT NULL').get().n, 10);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM good_info WHERE next_check=0').get().n, 10);
+});

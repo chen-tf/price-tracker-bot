@@ -99,7 +99,7 @@ export async function pollPrices(env, fetcher = fetch) {
     SELECT g.id FROM good_info g WHERE g.state = 1 AND g.next_check <= ?
     AND EXISTS (SELECT 1 FROM user_sub_good s JOIN "user" u ON u.id = s.user_id
       WHERE s.good_id = g.id AND s.state = 1 AND u.state = 1)
-    ORDER BY g.next_check, g.id LIMIT 20) RETURNING id, source_id, last_error`, timestamp + 14400, timestamp).all();
+    ORDER BY g.next_check, g.id LIMIT 10) RETURNING id, source_id, last_error`, timestamp + 14400, timestamp).all();
   if (!due.results.length) return;
   const ids = due.results.map(g => ({ id: g.id.replace(/\s+\/add$/, ''),
     product_id: g.source_id || g.id.replace(/\s+\/add$/, ''), unavailable: g.last_error === 'product_unavailable' }));
