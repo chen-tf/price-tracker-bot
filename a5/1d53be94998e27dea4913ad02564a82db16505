@@ -1,0 +1,29 @@
+cloudflare/README.md
+  s_80fe1ae900e884::t_9838ab46dd308c 5-10
+cloudflare/src/presentation.js
+  s_80fe1ae900e884::t_8be91f6af149dd 1-57
+cloudflare/test/worker.test.js
+  s_80fe1ae900e884::t_bf3c92e53c3af8 54-128
+cloudflare/test/presentation.test.js
+  s_80fe1ae900e884::t_bf3c92e53c3af8 1-59
+cloudflare/src/worker.js
+  s_80fe1ae900e884::t_8be91f6af149dd 3,47-50,84-89,91-95,100-119,145,151
+cloudflare/test/runtime.test.js
+  s_80fe1ae900e884::t_9838ab46dd308c 11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a51d53be94998e27dea4913ad02564a82db16505",
+  "prompts": {},
+  "sessions": {
+    "s_80fe1ae900e884": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a2019e-d6f2-7dd0-9e59-7bb19a4f1490",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Chen Tim[ ChenTim ] <tim.tf.chen@gmail.com>"
+    }
+  }
+}
