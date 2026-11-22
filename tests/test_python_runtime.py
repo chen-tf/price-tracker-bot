@@ -102,3 +102,42 @@ def test_group_commands_cannot_register_or_expose_private_lists():
         asyncio.run(pt_bot.my_good(update, None))
         registration.assert_not_called()
         listing.assert_not_called()
+
+
+def test_http_client_logs_and_tracebacks_redact_telegram_tokens(monkeypatch):
+    import io
+    import logging
+
+    import httpx
+
+    token = "123456789:synthetic-token-only-for-log-tests"
+    monkeypatch.setattr(pt_config, "BOT_TOKEN", token)
+    output = io.StringIO()
+    handler = logging.StreamHandler(output)
+    handler.setFormatter(pt_config.TokenRedactingFormatter("%(message)s"))
+    logger = logging.getLogger("httpx")
+    previous = (logger.level, logger.propagate, logger.handlers)
+    logger.propagate = False
+    logger.handlers = [handler]
+    try:
+        for level in (logging.INFO, logging.DEBUG):
+            logger.setLevel(level)
+            with httpx.Client(
+                transport=httpx.MockTransport(
+                    lambda request: httpx.Response(200, json={"ok": True})
+                )
+            ) as client:
+                client.get("https://api.telegram.org/bot" + token + "/getMe")
+            try:
+                raise RuntimeError("request failed: " + token)
+            except RuntimeError:
+                logger.exception("failed for %s", token)
+        assert token not in output.getvalue()
+        assert "[REDACTED]" in output.getvalue()
+        assert "getMe" in output.getvalue()
+        assert "Traceback" in output.getvalue()
+    finally:
+        logger.setLevel(previous[0])
+        logger.propagate = previous[1]
+        logger.handlers = previous[2]
+        handler.close()

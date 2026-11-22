@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 
 from dotenv import load_dotenv
 
@@ -40,3 +41,21 @@ logging.basicConfig(
 
 def momo_good_url():
     return MOMO_URL + MOMO_GOOD_URI
+
+
+class TokenRedactingFormatter(logging.Formatter):
+    """Redact credentials after rendering messages, arguments and tracebacks."""
+
+    def format(self, record):
+        rendered = super().format(record)
+        if BOT_TOKEN:
+            rendered = rendered.replace(BOT_TOKEN, "[REDACTED]")
+        return re.sub(r"(api\.telegram\.org/bot)[^/\s\"']+", r"\1[REDACTED]", rendered)
+
+
+for handler in logging.getLogger().handlers:
+    handler.setFormatter(
+        TokenRedactingFormatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    )
+for name in ("httpx", "httpcore"):
+    logging.getLogger(name).setLevel(logging.WARNING)
