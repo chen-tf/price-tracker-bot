@@ -6,7 +6,8 @@ CREATE INDEX ordered_updates ON telegram_update(actor_id, status, id);
 -- The final write in a processing batch fences an expired worker. A newer lease
 -- increments attempts; aborting the batch rolls back all of the stale worker's writes.
 CREATE TRIGGER fence_update_completion BEFORE UPDATE OF status ON telegram_update
-WHEN NEW.status = 'done' AND NEW.attempts != OLD.attempts
+WHEN NEW.status = 'done' AND (NEW.attempts != OLD.attempts
+  OR OLD.status != 'pending' OR OLD.lease_until <= unixepoch())
 BEGIN SELECT RAISE(ABORT, 'update lease superseded'); END;
 
 ALTER TABLE outbox ADD COLUMN subscription_id TEXT REFERENCES user_sub_good(id);

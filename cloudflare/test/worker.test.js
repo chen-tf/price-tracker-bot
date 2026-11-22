@@ -474,7 +474,7 @@ test('scheduled prices keep their reserved minutes even with a continuous reply 
   t.after(() => { globalThis.fetch = original; });
   let shops = 0, messages = 0;
   globalThis.fetch = async url => {
-    if (String(url).includes('api.telegram.org')) { messages++; return Response.json({ ok: true }); }
+    if (new URL(url).hostname === 'api.telegram.org') { messages++; return Response.json({ ok: true }); }
     shops++;
     return Response.json(String(url).endsWith('getInstantGoodsStatus')
       ? { success: true, rtnGoods: { '123': { goodsName: '商品', goodsPriceModel: { basePrice: { price: '900' } } } } }
@@ -484,4 +484,25 @@ test('scheduled prices keep their reserved minutes even with a continuous reply 
   assert.equal(shops, 2); assert.equal(messages, 0);
   await worker.scheduled({ scheduledTime: Date.UTC(2026, 10, 22, 0, 4) }, env, {});
   assert.ok(messages > 0);
+});
+
+
+test('the final expired add attempt cannot revive subscriptions after a later clearall', async t => {
+  for (const markFailed of [false, true]) {
+    const { db, env } = setup(t); seed(db);
+    incoming(db, 1, '/add https://www.momoshop.com.tw/product/456');
+    incoming(db, 2, '/clearall');
+    db.exec('UPDATE telegram_update SET attempts=9 WHERE id=1');
+    let release, started;
+    const waiting = new Promise(r => { started = r; });
+    const first = processOneUpdate(env, () => { started(); return new Promise(r => { release = r; }); });
+    await waiting;
+    db.exec('UPDATE telegram_update SET lease_until=0 WHERE id=1');
+    if (markFailed) db.exec("UPDATE telegram_update SET status='failed' WHERE id=1");
+    await processOneUpdate(env);
+    release({ id: '456', name: 'expired add', price: 100, stock_state: 1 });
+    await assert.rejects(first, /lease superseded/);
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM user_sub_good WHERE user_id='10' AND state=1").get().n, 0);
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM good_info WHERE id='456'").get().n, 0);
+  }
 });
