@@ -1,0 +1,19 @@
+cloudflare/docs/refresh-efficiency-2026-11-22.md
+  s_80fe1ae900e884::t_be75dfe2b1c4f2 20,22,37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a92ae25b677620e8705533303872a637652ec210",
+  "prompts": {},
+  "sessions": {
+    "s_80fe1ae900e884": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a2019e-d6f2-7dd0-9e59-7bb19a4f1490",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Chen Tim[ ChenTim ] <tim.tf.chen@linecorp.com>"
+    }
+  }
+}
