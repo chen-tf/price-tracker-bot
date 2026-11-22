@@ -51,6 +51,81 @@ function incoming(db, id, text, userId = 10, extra = {}) {
   return update;
 }
 
+function click(db, id, data, userId = 10) {
+  incoming(db, id, '', userId, { message: undefined, callback_query: { id: `c${id}`, from: { id: userId }, data,
+    message: { message_id: 88, chat: { id: userId, type: 'private' } } } });
+}
+
+test('compact /my sends only one page and buttons edit that message without fetching prices', async t => {
+  const { db, env } = setup(t); seed(db);
+  for (let i = 200; i < 206; i++) {
+    db.prepare('INSERT INTO good_info(id,name,price,stock_state) VALUES (?,?,100,1)').run(String(i), `商品${i}`);
+    db.prepare('INSERT INTO user_sub_good(id,user_id,good_id,price) VALUES (?,?,?,100)').run(`s${i}`, '10', String(i));
+  }
+  const noFetch = () => { throw new Error('list navigation must not fetch momo'); };
+  incoming(db, 1, '/my'); await processOneUpdate(env, noFetch);
+  const first = JSON.parse(db.prepare('SELECT payload FROM outbox').get().payload);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM outbox').get().n, 1);
+  assert.equal(first.parse_mode, 'HTML');
+  assert.match(first.text, /7 件 · 第 1\/2 頁/);
+  click(db, 2, 'page:1'); await processOneUpdate(env, noFetch);
+  const edits = [];
+  await drainOutbox(env, async (url, options) => {
+    edits.push({ method: url.split('/').at(-1), payload: JSON.parse(options.body) });
+    return Response.json({ ok: true });
+  });
+  assert.equal(edits[0].method, 'sendMessage');
+  assert.equal(edits[1].method, 'editMessageText');
+  assert.equal(edits[1].payload.message_id, 88);
+  assert.equal(edits[1].payload.chat_id, '10');
+  assert.match(edits[1].payload.text, /第 2\/2 頁/);
+  assert.equal(edits[1].payload.edit_message_id, undefined);
+});
+
+test('detail and live buttons enforce subscription ownership and never overwrite tracked prices', async t => {
+  const { db, env } = setup(t); seed(db);
+  db.exec("UPDATE user_sub_good SET state=0 WHERE user_id='20'");
+  let calls = 0;
+  const fetchGood = async id => { calls++; assert.equal(id, '123'); return { id, name: '<b>新名</b>', price: 750, stock_state: 1 }; };
+  click(db, 1, 'detail:123:0'); await processOneUpdate(env, fetchGood);
+  assert.equal(calls, 0);
+  click(db, 2, 'refresh:123:0'); await processOneUpdate(env, fetchGood);
+  assert.equal(calls, 1);
+  const live = JSON.parse(db.prepare("SELECT payload FROM outbox WHERE id='update:2:reply'").get().payload);
+  assert.match(live.text, /&lt;b&gt;新名&lt;\/b&gt;[\s\S]*\$750[\s\S]*即時查價：/);
+  assert.equal(db.prepare('SELECT price FROM good_info').get().price, 1000);
+  assert.equal(db.prepare("SELECT price FROM user_sub_good WHERE id='sub-10'").get().price, 1000);
+  for (const [id, action] of [[3, 'detail'], [4, 'refresh']]) {
+    click(db, id, `${action}:123:0`, 20); await processOneUpdate(env, fetchGood);
+    const denied = JSON.parse(db.prepare('SELECT payload FROM outbox WHERE id=?').get(`update:${id}:reply`).payload);
+    assert.equal(denied.text, '這件商品已不在你的追蹤清單。');
+  }
+  assert.equal(calls, 1);
+});
+
+test('live price failure remains plain text and keeps navigation available', async t => {
+  const { db, env } = setup(t); seed(db);
+  click(db, 1, 'refresh:123:1');
+  await processOneUpdate(env, async () => { throw new Error('momo <暫時無法讀取>'); });
+  const payload = JSON.parse(db.prepare('SELECT payload FROM outbox').get().payload);
+  assert.equal(payload.parse_mode, undefined);
+  assert.equal(payload.text, 'momo <暫時無法讀取>');
+  assert.equal(payload.reply_markup.inline_keyboard[0][0].callback_data, 'detail:123:1');
+});
+
+test('detail removal expires notifications for only its owner and handles stale buttons', async t => {
+  const { db, env } = setup(t); seed(db);
+  await acceptPrices(priceRequest([fresh()]), env);
+  click(db, 1, 'remove:123:2'); await processOneUpdate(env);
+  assert.equal(db.prepare("SELECT state FROM user_sub_good WHERE id='sub-10'").get().state, 0);
+  assert.equal(db.prepare("SELECT state FROM user_sub_good WHERE id='sub-20'").get().state, 1);
+  assert.equal(db.prepare("SELECT sent_at FROM outbox WHERE subscription_id='sub-10'").get().sent_at, -1);
+  click(db, 2, 'page:2'); await processOneUpdate(env);
+  const empty = JSON.parse(db.prepare("SELECT payload FROM outbox WHERE id='update:2:reply'").get().payload);
+  assert.equal(empty.text, '目前沒有追蹤商品。');
+  assert.deepEqual(empty.reply_markup.inline_keyboard, []);
+});
+
 test('only exact momo hosts are accepted, including on each redirect', async () => {
   for (const url of ['http://momo.dm/a', 'https://momo.dm.evil.test/a', 'https://evil.test/?x=https://momo.dm/a', 'https://x:m@momo.dm/a', 'https://momo.dm:8443/a']) {
     assert.throws(() => parseLink(url));

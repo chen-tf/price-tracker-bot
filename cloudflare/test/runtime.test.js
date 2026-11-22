@@ -8,7 +8,7 @@ test('real workerd and D1 commit price notifications and enforce route authentic
   const root = new URL('../src/', import.meta.url);
   const runtime = new Miniflare(convertV4MiniflareOptions({
     name: 'worker-test', compatibilityDate: '2026-11-01',
-    modules: ['worker.js', 'sync.js', 'momo.js', 'links.js', 'momo-api.js'].map(name => ({
+    modules: ['worker.js', 'sync.js', 'momo.js', 'links.js', 'momo-api.js', 'presentation.js'].map(name => ({
       type: 'ESModule', path: fileURLToPath(new URL(name, root)), contents: readFileSync(new URL(name, root), 'utf8'),
     })),
     d1Databases: ['DB'], bindings: { SYNC_SECRET: 'test-secret', WEBHOOK_SECRET: 'webhook-secret' },
