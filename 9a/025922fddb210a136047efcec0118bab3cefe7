@@ -1,0 +1,60 @@
+cloudflare/src/momo-api.js
+  s_80fe1ae900e884::t_b9ac63b42123ce 1-4,6-50,52-59
+  s_80fe1ae900e884::t_71bbb91f12982d 5,51
+cloudflare/src/worker.js
+  s_80fe1ae900e884::t_b9ac63b42123ce 154,158,215-217
+  s_80fe1ae900e884::t_c3c871c4fd3af3 183
+  s_80fe1ae900e884::t_5334ee3f501222 2,115,176-177,180,218
+  s_80fe1ae900e884::t_dafc5ce0522e74 6,89-97
+cloudflare/docs/momo-headers-2026-11-22.md
+  s_80fe1ae900e884::t_71bbb91f12982d 1-26
+cloudflare/src/momo.js
+  s_80fe1ae900e884::t_5334ee3f501222 1,22-26
+  s_80fe1ae900e884::t_b9ac63b42123ce 21
+  s_80fe1ae900e884::t_dfafef173be2f0 2-3,15
+cloudflare/test/runtime.test.js
+  s_80fe1ae900e884::t_b9ac63b42123ce 11
+  s_80fe1ae900e884::t_dfafef173be2f0 3-4,7-8,10,12-14,17-20,22-35
+cloudflare/wrangler.jsonc
+  s_80fe1ae900e884::t_b9ac63b42123ce 7
+cloudflare/src/links.js
+  s_80fe1ae900e884::t_dfafef173be2f0 1-42
+cloudflare/README.md
+  s_80fe1ae900e884::t_71bbb91f12982d 1,5,7,9,11-23,27,29,35,37,39,41,43-47,49,51,53,55,69,71,73,80,82,84,86,88,90
+cloudflare/migrations/0004_price_source.sql
+  s_80fe1ae900e884::t_5334ee3f501222 1
+cloudflare/test/worker.test.js
+  s_80fe1ae900e884::t_dfafef173be2f0 6,8,244-248,253-254,256-274
+  s_80fe1ae900e884::t_dafc5ce0522e74 277-286
+  s_80fe1ae900e884::t_f6e1636100b0ef 249-252,255,275-276
+cloudflare/scripts/refresh_prices.mjs
+  s_80fe1ae900e884::t_3ee02233c7fbc4 48,54-56,58
+  s_80fe1ae900e884::t_b9ac63b42123ce 2-3
+cloudflare/src/sync.js
+  s_80fe1ae900e884::t_b9ac63b42123ce 1,70-71,80
+  s_80fe1ae900e884::t_5334ee3f501222 35-38,40,62,64,74,76-79,81-83,85-90
+  s_80fe1ae900e884::t_dfafef173be2f0 2
+  s_80fe1ae900e884::t_c3c871c4fd3af3 53
+  s_80fe1ae900e884::t_f6e1636100b0ef 33-34
+  s_80fe1ae900e884::t_ebaf3b4a720c04 72-73
+README.md
+  s_80fe1ae900e884::t_71bbb91f12982d 37
+.github/workflows/cloudflare-refresh.yml
+  s_80fe1ae900e884::t_3ee02233c7fbc4 1,6-7,9-10,21,29,31-32,34-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9a025922fddb210a136047efcec0118bab3cefe7",
+  "prompts": {},
+  "sessions": {
+    "s_80fe1ae900e884": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a2019e-d6f2-7dd0-9e59-7bb19a4f1490",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Chen Tim[ ChenTim ] <tim.tf.chen@linecorp.com>"
+    }
+  }
+}
