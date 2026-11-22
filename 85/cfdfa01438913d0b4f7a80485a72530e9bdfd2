@@ -1,0 +1,21 @@
+tests/test_python_runtime.py
+  s_80fe1ae900e884::t_0b6eb65ef44440 105-143
+pt_config.py
+  s_80fe1ae900e884::t_0b6eb65ef44440 3,44-61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "85cfdfa01438913d0b4f7a80485a72530e9bdfd2",
+  "prompts": {},
+  "sessions": {
+    "s_80fe1ae900e884": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a2019e-d6f2-7dd0-9e59-7bb19a4f1490",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Chen Tim[ ChenTim ] <tim.tf.chen@gmail.com>"
+    }
+  }
+}
