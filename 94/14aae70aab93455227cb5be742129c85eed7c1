@@ -1,0 +1,26 @@
+cloudflare/README.md
+  s_80fe1ae900e884::t_150a38c743378e 43-44
+  s_80fe1ae900e884::t_99f1c3c93b67fa 21,51
+cloudflare/docs/refresh-efficiency-2026-11-22.md
+  s_80fe1ae900e884::t_150a38c743378e 1-41
+cloudflare/src/sync.js
+  s_80fe1ae900e884::t_33eac1ac3e5486 102
+cloudflare/test/worker.test.js
+  s_80fe1ae900e884::t_f160ef5100924f 345-365
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9414aae70aab93455227cb5be742129c85eed7c1",
+  "prompts": {},
+  "sessions": {
+    "s_80fe1ae900e884": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a2019e-d6f2-7dd0-9e59-7bb19a4f1490",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Chen Tim[ ChenTim ] <tim.tf.chen@linecorp.com>"
+    }
+  }
+}
