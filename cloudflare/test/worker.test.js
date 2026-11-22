@@ -5,6 +5,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import worker, { drainOutbox, processOneUpdate } from '../src/worker.js';
 import { acceptPrices, trackedGoods, pollPrices, readPrices } from '../src/sync.js';
 import { parsePrice, parseStock } from '../scripts/refresh_prices.mjs';
+import { getPrices, resolveProductCode } from '../src/momo-api.js';
 import { fetchProduct, parseLink } from '../src/momo.js';
 
 function setup(t) {
@@ -283,4 +284,61 @@ test('instant price query displays live data without changing subscriptions or b
   assert.match(db.prepare('SELECT payload FROM outbox').get().payload, /即時價格：950/);
   assert.equal(db.prepare("SELECT price FROM user_sub_good WHERE user_id='10'").get().price, 1000);
   assert.equal(db.prepare('SELECT price FROM good_info').get().price, 1000);
+});
+
+
+test('one batch request rechecks 100 known unavailable products and detects their return', async () => {
+  const goods = Array.from({ length: 100 }, (_, i) => ({ id: String(i + 1), product_id: String(i + 1), unavailable: true }));
+  let calls = 0;
+  const fetcher = async url => {
+    calls++;
+    assert.match(String(url), /getInstantGoodsStatus$/);
+    return Response.json({ success: true, rtnGoods: Object.fromEntries(goods.map(g => [g.id,
+      { goodsName: '', goodsPriceModel: { basePrice: { price: '0' } } }])) });
+  };
+  const result = await getPrices(goods, fetcher);
+  assert.equal(calls, 1);
+  assert.equal(result.filter(g => g.unavailable).length, 100);
+  const returned = await getPrices([goods[0]], async url => String(url).endsWith('getInstantGoodsStatus') ?
+    Response.json({ success: true, rtnGoods: { '1': { goodsName: '回架商品', goodsPriceModel: { basePrice: { price: '100' } } } } }) :
+    Response.json({ success: true, rtnGoodsData: { goodsStock: '1' } }));
+  assert.equal(returned[0].price, 100);
+  assert.equal(returned[0].stock_state, 1);
+  const failed = await getPrices(goods, async () => new Response('', { status: 403 }));
+  assert.equal(failed.filter(g => g.error && !g.unavailable).length, 100);
+});
+
+test('verified replacement codes keep the original subscription key and deduplicate stock calls', async t => {
+  const html = '<script type="application/ld+json">' + JSON.stringify({ '@graph': [{ '@type': 'ProductGroup',
+    sku: '999', hasVariant: [{ offers: { url: 'https://www.momoshop.com.tw/product/123' } }] }] }) + '</script>';
+  assert.equal(resolveProductCode('123', html), '999');
+  assert.throws(() => resolveProductCode('456', html), /missing verified/);
+  assert.throws(() => resolveProductCode('123', html.replace('www.momoshop.com.tw', 'evil.test')), /missing verified/);
+  let calls = 0;
+  const source = await getPrices([{ id: '123', product_id: '999' }, { id: '999', product_id: '999' }], async url => {
+    calls++;
+    return String(url).endsWith('getInstantGoodsStatus') ? Response.json({ success: true, rtnGoods: {
+      '999': { goodsName: '商品', goodsPriceModel: { basePrice: { price: '900' } } },
+    } }) : Response.json({ success: true, rtnGoodsData: { goodsStock: '1' } });
+  });
+  assert.equal(calls, 2);
+  const { db, env } = setup(t); seed(db);
+  await acceptPrices(new Request('https://test', { method: 'POST', body: JSON.stringify({ run_id: '5', goods: [source[0]] }) }), env);
+  assert.equal(db.prepare("SELECT source_id FROM good_info WHERE id='123'").get().source_id, '999');
+  assert.equal(db.prepare("SELECT price FROM user_sub_good WHERE id='sub-10'").get().price, 1000);
+  const page = await (await trackedGoods(new Request('https://test'), env)).json();
+  assert.equal(page.goods[0].product_id, '999');
+});
+
+test('twenty price updates use two SQL statements and only due or failed goods are selected for manual refresh', async t => {
+  const { db, env } = setup(t); seed(db);
+  const timestamp = Math.floor(Date.now() / 1000);
+  const goods = Array.from({ length: 20 }, (_, i) => ({ id: String(i + 1000), name: '商品', price: 900, stock_state: 1, observed_at: timestamp }));
+  for (const g of goods) db.prepare('INSERT INTO good_info(id,name,price,stock_state) VALUES (?,?,1000,1)').run(g.id, g.name);
+  const response = await acceptPrices(new Request('https://test', { method: 'POST', body: JSON.stringify({ run_id: '6', goods }) }), env);
+  assert.equal((await response.json()).sql_statements, 2);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM good_info WHERE price=900').get().n, 20);
+  db.exec("UPDATE good_info SET next_check=unixepoch()+3600, last_error='HTTP 503' WHERE id='123'");
+  assert.equal((await (await trackedGoods(new Request('https://test/?due=1'), env)).json()).goods.length, 0);
+  assert.equal((await (await trackedGoods(new Request('https://test/?errors=1'), env)).json()).goods[0].id, '123');
 });

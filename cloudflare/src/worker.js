@@ -31,6 +31,7 @@ async function telegram(env, method, payload, fetcher = fetch) {
 }
 
 export async function drainOutbox(env, fetcher = fetch, limit = 6) {
+  let attempted = 0;
   for (let i = 0; i < limit; i++) {
     const timestamp = now();
     const item = await statement(env, `UPDATE outbox SET next_attempt = ?, attempts = attempts + 1
@@ -39,6 +40,7 @@ export async function drainOutbox(env, fetcher = fetch, limit = 6) {
         ORDER BY o.priority, o.created_at, o.id LIMIT 1)
       RETURNING *, (SELECT chat_id FROM "user" WHERE id = outbox.user_id) AS chat_id`, timestamp + 120, timestamp).first();
     if (!item) break;
+    attempted++;
     try {
       await telegram(env, 'sendMessage', { ...JSON.parse(item.payload), chat_id: item.chat_id }, fetcher);
       await statement(env, 'UPDATE outbox SET sent_at = ? WHERE id = ?', now(), item.id).run();
@@ -59,6 +61,7 @@ export async function drainOutbox(env, fetcher = fetch, limit = 6) {
       }
     }
   }
+  return attempted;
 }
 
 async function planUpdate(env, update, getProduct) {
@@ -123,9 +126,9 @@ async function planUpdate(env, update, getProduct) {
     try {
       const fresh = await getProduct(command === '/add' ? argument : text);
       // The conditional insert enforces the limit even with simultaneous updates.
-      writes.push(statement(env, `INSERT INTO good_info(id, name, price, stock_state, next_check)
-        VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET state = 1`,
-      fresh.id, fresh.name, fresh.price, fresh.stock_state, now() + 14400));
+      writes.push(statement(env, `INSERT INTO good_info(id, name, price, stock_state, next_check, source_id)
+        VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET state = 1, source_id = COALESCE(excluded.source_id, good_info.source_id)`,
+      fresh.id, fresh.name, fresh.price, fresh.stock_state, now() + 14400, fresh.source_id || null));
       writes.push(statement(env, `INSERT INTO user_sub_good(id, user_id, good_id, price)
         SELECT ?, ?, ?, ? WHERE
           (SELECT COUNT(*) FROM user_sub_good WHERE user_id = ? AND state = 1) < 20
@@ -171,13 +174,15 @@ export default {
     }
     if (url.pathname === '/health' && request.method === 'GET') {
       try {
-        const health = await statement(env, `SELECT
-          (SELECT MAX(last_success) FROM good_info) AS last_price_success,
-          (SELECT COUNT(*) FROM good_info WHERE state = 1 AND last_error = 'product_unavailable') AS unavailable_products,
-          (SELECT COUNT(*) FROM good_info g WHERE g.state = 1 AND COALESCE(g.last_error, '') != 'product_unavailable' AND (g.last_success IS NULL OR g.last_success < unixepoch() - 28800)
-            AND EXISTS (SELECT 1 FROM user_sub_good s JOIN "user" u ON u.id = s.user_id
-              WHERE s.good_id = g.id AND s.state = 1 AND u.state = 1)) AS stale_products,
-          (SELECT COUNT(*) FROM good_info WHERE state = 1 AND last_error IS NOT NULL AND last_error != 'product_unavailable') AS failed_products,
+        const health = await statement(env, `WITH tracked AS (
+          SELECT g.* FROM good_info g WHERE g.state = 1 AND EXISTS (
+            SELECT 1 FROM user_sub_good s JOIN "user" u ON u.id = s.user_id
+            WHERE s.good_id = g.id AND s.state = 1 AND u.state = 1))
+          SELECT (SELECT MAX(last_success) FROM tracked) AS last_price_success,
+          (SELECT COUNT(*) FROM tracked WHERE last_error = 'product_unavailable') AS unavailable_products,
+          (SELECT COUNT(*) FROM tracked WHERE COALESCE(last_error, '') != 'product_unavailable'
+            AND (last_success IS NULL OR last_success < unixepoch() - 28800)) AS stale_products,
+          (SELECT COUNT(*) FROM tracked WHERE last_error IS NOT NULL AND last_error != 'product_unavailable') AS failed_products,
           (SELECT COUNT(*) FROM telegram_update WHERE status = 'pending') AS pending_updates,
           (SELECT COUNT(*) FROM outbox WHERE sent_at IS NULL) AS pending_messages`).first();
         return Response.json({ status: 'ok', price_source: 'cloudflare-native-http', ...health });
@@ -215,8 +220,9 @@ export default {
     let handled = true;
     try { handled = await processOneUpdate(env); } catch { console.error(JSON.stringify({ event: 'update_processing_failed' })); }
     const maintenance = new Date(controller.scheduledTime ?? Date.now()).getUTCMinutes() === 0;
-    if (!handled && !maintenance) await pollPrices(env);
-    await drainOutbox(env, fetch, 3);
+    const attempted = await drainOutbox(env, fetch, 3);
+    // Keep price fetching and notification delivery in separate CPU budgets.
+    if (!handled && !maintenance && !attempted) await pollPrices(env);
     if (!maintenance) return;
     const cutoff = now() - 7 * 86400;
     await env.DB.batch([

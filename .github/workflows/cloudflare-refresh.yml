@@ -7,7 +7,7 @@ on:
         description: Connectivity and header tests do not modify user data
         type: choice
         default: connectivity
-        options: [connectivity, headers, refresh]
+        options: [connectivity, headers, refresh, full-refresh, retry-errors]
 
 permissions:
   contents: read
@@ -32,8 +32,14 @@ jobs:
         if: inputs.mode == 'connectivity'
         run: node cloudflare/scripts/refresh_prices.mjs --probe
       - name: Refresh tracked prices manually
-        if: inputs.mode == 'refresh'
+        if: inputs.mode == 'refresh' || inputs.mode == 'full-refresh' || inputs.mode == 'retry-errors'
         env:
           WORKER_URL: ${{ secrets.WORKER_URL }}
           SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
-        run: node cloudflare/scripts/refresh_prices.mjs
+          REFRESH_MODE: ${{ inputs.mode }}
+        run: |
+          case "$REFRESH_MODE" in
+            full-refresh) node cloudflare/scripts/refresh_prices.mjs --all ;;
+            retry-errors) node cloudflare/scripts/refresh_prices.mjs --retry-errors ;;
+            *) node cloudflare/scripts/refresh_prices.mjs ;;
+          esac

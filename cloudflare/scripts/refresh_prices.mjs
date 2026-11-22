@@ -40,17 +40,23 @@ async function main() {
   do {
     const url = new URL('/internal/tracked-goods', base);
     url.searchParams.set('cursor', cursor);
+    if (process.argv.includes('--retry-errors')) url.searchParams.set('errors', '1');
+    else if (!process.argv.includes('--all')) url.searchParams.set('due', '1');
     const page = await requestJson(url, { headers });
     goods.push(...page.goods);
     if (page.next_cursor && page.next_cursor <= cursor) throw new Error('Invalid pagination');
     cursor = page.next_cursor;
   } while (cursor);
-  let success = 0, failed = 0, unavailable = 0, consecutiveFailed = 0;
-  for (let i = 0; i < goods.length; i += 20) {
-    const results = await getPrices(goods.slice(i, i + 20));
+  let success = 0, failed = 0, unavailable = 0, consecutiveFailed = 0, rowsRead = 0, rowsWritten = 0, sqlStatements = 0;
+  const started = Date.now();
+  for (let i = 0; i < goods.length; i += 100) {
+    const results = await getPrices(goods.slice(i, i + 100), fetch, { maxResolutions: Infinity });
     const errors = results.filter(g => g.error);
-    await requestJson(new URL('/internal/prices', base), { method: 'POST', headers,
-      body: JSON.stringify({ run_id: runId, goods: results }) });
+    for (let j = 0; j < results.length; j += 20) {
+      const usage = await requestJson(new URL('/internal/prices', base), { method: 'POST', headers,
+        body: JSON.stringify({ run_id: runId, goods: results.slice(j, j + 20) }) });
+      rowsRead += usage.rows_read || 0; rowsWritten += usage.rows_written || 0; sqlStatements += usage.sql_statements || 0;
+    }
     const missing = results.filter(g => g.unavailable).length;
     unavailable += missing;
     success += results.length - errors.length - missing;
@@ -60,8 +66,9 @@ async function main() {
     consecutiveFailed = errors.length === results.length ? consecutiveFailed + 1 : 0;
     // Stop quickly when the entire API is unavailable; retain all previous values.
     if (consecutiveFailed >= 3) throw new Error('Three entire batches failed; stopping until next run');
-    await pause(1000);
   }
+  console.log(JSON.stringify({ summary: true, total: goods.length, success, unavailable, failed,
+    elapsed_ms: Date.now() - started, sql_statements: sqlStatements, rows_read: rowsRead, rows_written: rowsWritten }));
   if (failed) process.exitCode = 1;
 }
 
