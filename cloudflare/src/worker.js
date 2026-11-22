@@ -72,10 +72,10 @@ async function planUpdate(env, update, getProduct) {
   // Personal lists are only exposed in a private chat with their owner.
   if (!message || !actor || message.chat?.type !== 'private' || String(message.chat.id) !== String(actor.id)) return [];
   const userId = String(actor.id);
-  await statement(env, `INSERT INTO "user"(id, chat_id) VALUES (?, ?)
-    ON CONFLICT(id) DO UPDATE SET chat_id = excluded.chat_id, state = 1, update_time = CURRENT_TIMESTAMP`,
-  userId, String(message.chat.id)).run();
   const writes = [];
+  writes.push(statement(env, `INSERT INTO "user"(id, chat_id) VALUES (?, ?)
+    ON CONFLICT(id) DO UPDATE SET chat_id = excluded.chat_id, state = 1, update_time = CURRENT_TIMESTAMP`,
+  userId, String(message.chat.id)));
   const respond = (text, extra, suffix) => writes.push(reply(env, update.update_id, userId, text, extra, suffix));
   if (callback) {
     if (/^(?:clear:)?\d+(?:\s+\/add)?$/.test(callback.data || '')) {
@@ -224,7 +224,7 @@ export default {
         catch { /* Expired callback acknowledgments do not prevent processing a deletion. */ }
       }
       await processOneUpdate(env);
-      await drainOutbox(env);
+      await drainOutbox(env, fetch, 1);
     })().catch(() => {
       console.error(JSON.stringify({ event: 'update_deferred_to_cron' }));
     }));

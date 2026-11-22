@@ -39,3 +39,15 @@
 - Telegram /price 即時測試：商品 4811545 回 1111 元；舊編號 10213900 透過來源 14309374 回 7111 元，均顯示可購買。
 - 全量結束時 /health 為 failed_products=0、stale_products=0、pending_updates=0、pending_messages=0。
 - Fly price-tracker 應用已刪除，Dashboard 確認 0 個應用、0 台機器；原本無 Volume。舊 Supabase 與私人備份保留。
+
+## Code review 後的即時查價 CPU 驗證
+
+將使用者註冊併入指令交易，並把 webhook 單次立即投遞量限制為一則，其餘保留給 Cron。以真實 Telegram `/price 4811545`、相同商品與價格來源驗證：
+
+| 版本 | webhook CPU | outcome |
+| --- | --- | --- |
+| 調整前 | 12ms、12ms | ok |
+| 調整後首次觀測 | 19ms | ok |
+| 調整後後續觀測 | 7ms、7ms | ok |
+
+三次新版本查詢均回覆 1,111 元且有貨，約 1.9–2.5 秒完成；當時無到期商品的 Cron 約 1ms。這些數值不代表所有商品、冷啟動或通知負載都能在 10ms 內完成。Cloudflare [CPU time 說明](https://developers.cloudflare.com/workers/platform/limits/#cpu-time) 允許 isolate 偶發超限，持續超限仍可能被終止；因此保留持久化 inbox、租約與重試，不以付費方案掩蓋限制。

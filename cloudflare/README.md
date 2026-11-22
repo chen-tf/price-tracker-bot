@@ -47,11 +47,12 @@ Telegram → Cloudflare Workers → D1。Cloudflare Cron 每分鐘處理到期�
 - Cloudflare 帳號保持 **Workers Free**：每日 100,000 requests，10ms CPU／次、50 subrequests／次。超額會拒絕服務，不啟用付費方案。
 - D1 Free：每日 5,000,000 rows read、100,000 rows written；每 DB 500MB。本次匯入約寫入 49,311 rows。
 - 不綁定 Browser Run，不消耗其每日 10 分鐘額度。
+- 即時查價熱路徑實測 7ms，首次觀測曾為 19ms；Cloudflare 允許偶發 CPU 超限，但持續超限可能終止。這不是每次請求低於 10ms 的保證，詳見補查效率紀錄。
 - GitHub Actions 僅負責公開 repo 標準免費 runner 的 CI/CD 與手動診斷；正式查價不依賴 GitHub 排程，因此沒有 60 天不活躍停用問題。
 - Cron 查價每批 10 件，以單次價格 API 搭配最多四個並行庫存請求，移除固定等待；相同來源商品共用庫存請求。已知下架商品只需批次價格請求。通知分鐘最多發三則，該分鐘不查價。
 - 每批有效價格與通知使用兩句 SQL，在同一 D1 transaction 提交；下架與錯誤各一句。這減少 SQL 準備、讀取與往返，不代表計費 rows written 同比下降。手動補查會記錄實際 rows read／written。
 
-Webhook 先持久化再 ACK，重送去重。價格與 outbox 通知同 D1 batch 原子提交，過期或重送資料不重複建立提醒。Telegram 429／暫時錯誤重試，403 停用已封鎖 bot 的使用者與追蹤。Telegram sendMessage 沒有冪等鍵，接收成功但本地成功紀錄遺失時，仍可能重複發送。
+Webhook 先持久化再 ACK，重送去重；使用者註冊與指令結果同一批交易提交，減少資料庫往返。每次 webhook 最多立即投遞一則回覆，其餘訊息保留於 outbox，由通知分鐘繼續處理。價格與 outbox 通知同 D1 batch 原子提交，過期或重送資料不重複建立提醒。Telegram 429／暫時錯誤重試，403 停用已封鎖 bot 的使用者與追蹤。Telegram sendMessage 沒有冪等鍵，接收成功但本地成功紀錄遺失時，仍可能重複發送。
 
 同一使用者的更新依 ID 順序處理，其他使用者可並行；租約過期後的舊處理器不能提交。更新最多自動處理十次，耗盡重試且租約到期後標示失敗，讓後續指令繼續。取消追蹤會永久作廢尚未送出的商品通知，重新加入也不會復活舊通知；已開始傳送的 Telegram 請求可能完成。已完成更新與已送通知保留七天，每小時清理一次。大量復原通知會分批消化，指令回覆優先。
 
