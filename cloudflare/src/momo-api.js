@@ -74,7 +74,7 @@ export async function getPrices(goods, fetcher = fetch, { maxResolutions = 1 } =
     prices = await momo('getInstantGoodsStatus', { columnType: '', priceDescrip: true,
       implementTypes: ['price'], goodsCodes: [...new Set(goods.map(g => g.product_id))], host: 'momoshop' }, fetcher);
   } catch (error) {
-    return goods.map(g => ({ id: g.id, error: `price fetch: ${error.message}` }));
+    return goods.map(g => ({ id: g.id, error: `price fetch: ${error.message}`, observed_at: timestamp }));
   }
   const result = [];
   let resolutions = 0;
@@ -114,7 +114,7 @@ export async function getPrices(goods, fetcher = fetch, { maxResolutions = 1 } =
           stock = await getStock(sourceId);
         }
         return { ...fresh, id: good.id, source_id: sourceId, stock_state: parseStock(stock.rtnGoodsData), observed_at: timestamp };
-      } catch (error) { return error.message === 'product_unavailable' ? { id: good.id, unavailable: true, observed_at: timestamp } : { id: good.id, error: error.message }; }
+      } catch (error) { return error.message === 'product_unavailable' ? { id: good.id, unavailable: true, observed_at: timestamp } : { id: good.id, error: error.message, observed_at: timestamp }; }
     })));
   }
   return result;

@@ -17,7 +17,7 @@ test('real workerd and D1 commit price notifications and enforce route authentic
   const db = await runtime.getD1Database('DB');
   const migrations = new URL('../migrations/', import.meta.url);
   for (const name of readdirSync(migrations).filter(f => f.endsWith('.sql')).sort()) {
-    for (const sql of readFileSync(new URL(name, migrations), 'utf8').split(';').filter(s => s.trim())) await db.prepare(sql).run();
+    for (const sql of readFileSync(new URL(name, migrations), 'utf8').replace(/^--.*$/gm, '').split(/;(?!\s*END\b)/).filter(s => s.trim())) await db.prepare(sql).run();
   }
   await db.batch([
     db.prepare(`INSERT INTO "user"(id,chat_id) VALUES ('10','10')`),
@@ -33,4 +33,9 @@ test('real workerd and D1 commit price notifications and enforce route authentic
   assert.equal((await db.prepare('SELECT price FROM good_info').first()).price, 900);
   assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM outbox').first()).n, 1);
   assert.equal((await runtime.dispatchFetch('https://test/health')).status, 200);
+  await assert.rejects(db.batch([
+    db.prepare("UPDATE good_info SET price=1 WHERE id='123'"),
+    db.prepare("INSERT INTO good_info(id,name,price,stock_state) VALUES ('bad','invalid',0,1)"),
+  ]));
+  assert.equal((await db.prepare('SELECT price FROM good_info').first()).price, 900);
 });

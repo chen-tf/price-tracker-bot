@@ -37,6 +37,7 @@ export async function drainOutbox(env, fetcher = fetch, limit = 6) {
     const item = await statement(env, `UPDATE outbox SET next_attempt = ?, attempts = attempts + 1
       WHERE id = (SELECT o.id FROM outbox o JOIN "user" u ON u.id = o.user_id
         WHERE o.sent_at IS NULL AND o.next_attempt <= ? AND u.state = 1
+        AND (o.subscription_id IS NULL OR EXISTS (SELECT 1 FROM user_sub_good s WHERE s.id = o.subscription_id AND s.state = 1))
         ORDER BY o.priority, o.created_at, o.id LIMIT 1)
       RETURNING *, (SELECT chat_id FROM "user" WHERE id = outbox.user_id) AS chat_id`, timestamp + 120, timestamp).first();
     if (!item) break;
@@ -77,9 +78,12 @@ async function planUpdate(env, update, getProduct) {
   const writes = [];
   const respond = (text, extra, suffix) => writes.push(reply(env, update.update_id, userId, text, extra, suffix));
   if (callback) {
-    if (/^clear:\d+(?:\s+\/add)?$/.test(callback.data || '')) {
+    if (/^(?:clear:)?\d+(?:\s+\/add)?$/.test(callback.data || '')) {
+      const goodId = callback.data.replace(/^clear:/, '');
+      writes.push(statement(env, `UPDATE outbox SET sent_at = -1 WHERE sent_at IS NULL AND user_id = ?
+        AND subscription_id IN (SELECT id FROM user_sub_good WHERE user_id = ? AND good_id = ?)`, userId, userId, goodId));
       writes.push(statement(env, 'UPDATE user_sub_good SET state = 0, update_time = CURRENT_TIMESTAMP WHERE user_id = ? AND good_id = ?',
-        userId, callback.data.slice(6)));
+        userId, goodId));
       respond('已移除該追蹤商品。');
     }
     return writes;
@@ -120,6 +124,7 @@ async function planUpdate(env, update, getProduct) {
       }
     }
   } else if (command === '/clearall') {
+    writes.push(statement(env, 'UPDATE outbox SET sent_at = -1 WHERE sent_at IS NULL AND user_id = ? AND subscription_id IS NOT NULL', userId));
     writes.push(statement(env, 'UPDATE user_sub_good SET state = 0, update_time = CURRENT_TIMESTAMP WHERE user_id = ?', userId));
     respond('已清空追蹤清單。');
   } else if (command === '/add' || /https:\/\//i.test(text)) {
@@ -127,8 +132,10 @@ async function planUpdate(env, update, getProduct) {
       const fresh = await getProduct(command === '/add' ? argument : text);
       // The conditional insert enforces the limit even with simultaneous updates.
       writes.push(statement(env, `INSERT INTO good_info(id, name, price, stock_state, next_check, source_id)
-        VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET state = 1, source_id = COALESCE(excluded.source_id, good_info.source_id)`,
+        VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET state = 1, next_check = 0, source_id = COALESCE(excluded.source_id, good_info.source_id)`,
       fresh.id, fresh.name, fresh.price, fresh.stock_state, now() + 14400, fresh.source_id || null));
+      writes.push(statement(env, `UPDATE outbox SET sent_at = -1 WHERE sent_at IS NULL AND subscription_id IN
+        (SELECT id FROM user_sub_good WHERE user_id = ? AND good_id = ?)`, userId, fresh.id));
       writes.push(statement(env, `INSERT INTO user_sub_good(id, user_id, good_id, price)
         SELECT ?, ?, ?, ? WHERE
           (SELECT COUNT(*) FROM user_sub_good WHERE user_id = ? AND state = 1) < 20
@@ -152,11 +159,14 @@ async function planUpdate(env, update, getProduct) {
 export async function processOneUpdate(env, getProduct = input => fetchProduct(input, fetch, env)) {
   const timestamp = now();
   const item = await statement(env, `UPDATE telegram_update SET lease_until = ?, attempts = attempts + 1
-    WHERE id = (SELECT id FROM telegram_update WHERE status = 'pending' AND lease_until <= ?
-      AND attempts < 10 ORDER BY id LIMIT 1) RETURNING *`, timestamp + 300, timestamp).first();
+    WHERE id = (SELECT candidate.id FROM telegram_update candidate WHERE candidate.status = 'pending' AND candidate.lease_until <= ?
+      AND candidate.attempts < 10 AND NOT EXISTS (SELECT 1 FROM telegram_update prior
+        WHERE prior.actor_id = candidate.actor_id AND prior.id < candidate.id AND prior.status = 'pending'
+        AND (prior.attempts < 10 OR prior.lease_until > ?))
+      ORDER BY candidate.id LIMIT 1) RETURNING *`, timestamp + 300, timestamp, timestamp).first();
   if (!item) return false;
   const writes = await planUpdate(env, JSON.parse(item.payload), getProduct);
-  writes.push(statement(env, `UPDATE telegram_update SET status = 'done', payload = '{}' WHERE id = ?`, item.id));
+  writes.push(statement(env, `UPDATE telegram_update SET status = 'done', payload = '{}', attempts = ? WHERE id = ?`, item.attempts, item.id));
   await env.DB.batch(writes);
   return true;
 }
@@ -170,9 +180,7 @@ export default {
       }
       if (url.pathname === '/internal/tracked-goods' && request.method === 'GET') return trackedGoods(request, env);
       if (url.pathname === '/internal/prices' && request.method === 'POST') return acceptPrices(request, env);
-      return new Response('Not found', { status: 404 });
-    }
-    if (url.pathname === '/health' && request.method === 'GET') {
+    if (url.pathname === '/internal/health' && request.method === 'GET') {
       try {
         const health = await statement(env, `WITH tracked AS (
           SELECT g.* FROM good_info g WHERE g.state = 1 AND EXISTS (
@@ -186,6 +194,14 @@ export default {
           (SELECT COUNT(*) FROM telegram_update WHERE status = 'pending') AS pending_updates,
           (SELECT COUNT(*) FROM outbox WHERE sent_at IS NULL) AS pending_messages`).first();
         return Response.json({ status: 'ok', price_source: 'cloudflare-native-http', ...health });
+      } catch { return Response.json({ status: 'database_unavailable' }, { status: 503 }); }
+    }
+      return new Response('Not found', { status: 404 });
+    }
+    if (url.pathname === '/health' && request.method === 'GET') {
+      try {
+        await statement(env, 'SELECT 1 AS ok').first();
+        return Response.json({ status: 'ok', price_source: 'cloudflare-native-http' });
       } catch { return Response.json({ status: 'database_unavailable' }, { status: 503 }); }
     }
     if (url.pathname !== '/webhook' || request.method !== 'POST') return new Response('Not found', { status: 404 });
@@ -216,17 +232,17 @@ export default {
   },
 
   async scheduled(controller, env, _ctx) {
-    // A bounded amount of work per minute avoids a long-running VM or unbounded cron.
-    let handled = true;
-    try { handled = await processOneUpdate(env); } catch { console.error(JSON.stringify({ event: 'update_processing_failed' })); }
-    const maintenance = new Date(controller.scheduledTime ?? Date.now()).getUTCMinutes() === 0;
-    const attempted = await drainOutbox(env, fetch, 3);
-    // Keep price fetching and notification delivery in separate CPU budgets.
-    if (!handled && !maintenance && !attempted) await pollPrices(env);
-    if (!maintenance) return;
+    // Three of every four minutes are reserved for prices, even with a message backlog.
+    // Separate price and Telegram work keeps each invocation within the Free CPU budget.
+    const minute = new Date(controller.scheduledTime ?? Date.now()).getUTCMinutes();
+    if (minute % 4 !== 0) { await pollPrices(env); return; }
+    try { await processOneUpdate(env); } catch { console.error(JSON.stringify({ event: 'update_processing_failed' })); }
+    await drainOutbox(env, fetch, 3);
+    if (minute !== 0) return;
     const cutoff = now() - 7 * 86400;
     await env.DB.batch([
-      statement(env, "DELETE FROM telegram_update WHERE status = 'done' AND created_at < ?", cutoff),
+      statement(env, "UPDATE telegram_update SET status = 'failed', payload = '{}' WHERE status = 'pending' AND attempts >= 10 AND lease_until <= ?", now()),
+      statement(env, "DELETE FROM telegram_update WHERE status IN ('done', 'failed') AND created_at < ?", cutoff),
       statement(env, 'DELETE FROM outbox WHERE sent_at IS NOT NULL AND created_at < ?', cutoff),
     ]);
   },

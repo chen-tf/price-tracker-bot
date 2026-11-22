@@ -2,54 +2,64 @@ import asyncio
 import inspect
 import logging
 import os
+from functools import wraps
 
 import telegram
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ChatAction
 from telegram.ext import (
+    Application,
+    CallbackQueryHandler,
     CommandHandler,
+    ContextTypes,
     ConversationHandler,
     MessageHandler,
-    Application, ContextTypes, filters, CallbackQueryHandler, )
+    filters,
+)
 
 import pt_config
 import pt_error
 import pt_service
-from lotify_client import get_lotify_client
 from response.UserAddGoodResponse import UserAddGoodResponse
 
 CLEAR_USER_SUB_GOODS_TEXT = "請點選要刪除的商品"
 
 template_dir = os.path.abspath("templates")
 
-lotify_client = get_lotify_client()
-
-application = Application.builder().token(pt_config.BOT_TOKEN).build()
+application = None
 logger = logging.getLogger("bot")
 
 UNTRACK = range(1)
 ADD_GOOD = range(1)
 
 
+def _is_private_update(update):
+    chat, user = update.effective_chat, update.effective_user
+    return bool(chat and user and chat.type == "private" and chat.id == user.id)
+
+
 def check_user_reg(func):
-    def wrapper(*args, **kwargs):
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
         for arg in args:
             if isinstance(arg, Update):
+                if not _is_private_update(arg):
+                    return None
                 chat_id = str(arg.message.chat_id)
                 user_id = str(arg.message.from_user.id)
                 pt_service.ensure_user_registration(user_id, chat_id)
                 break
-        return func(*args, **kwargs)
+        return await func(*args, **kwargs)
 
     return wrapper
 
 
 async def consume_request(request):
-    update = telegram.Update.de_json(request.get_json(force=True), application.bot)
-    await application.process_update(update)
+    update = telegram.Update.de_json(request.get_json(force=True), get_application().bot)
+    await get_application().process_update(update)
 
 
-def _register_bot_command_handler():
+def _register_bot_command_handler(application):
     start_handler = CommandHandler("start", start)
     application.add_handler(start_handler)
 
@@ -79,26 +89,22 @@ def _register_bot_command_handler():
 
 @check_user_reg
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    message = f'''
+    message = f"""
             /my 顯示追蹤清單
             /clearall 清空全部追蹤清單
             /clear 刪除指定追蹤商品
             /add 後貼上momo商品連結可加入追蹤清單
             或是可以直接使用指令選單方便操作
             ====
-            '''
+            """
     await update.message.reply_text(text=inspect.cleandoc(message))
 
 
 @check_user_reg
 async def line(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    auth_url = lotify_client.get_auth_link(state=update.message.from_user.id)
-    msg = inspect.cleandoc(f"""
-    你專屬的 LINE 通知綁定連結
-    => 為確保綁定流程正常，請複製連結後在手機瀏覽器開啟
-    {auth_url}
-    """)
-    await update.message.reply_text(text=msg)
+    await update.message.reply_text(
+        "LINE Notify 已於 2025/03/31 終止服務，目前透過 Telegram 發送通知。"
+    )
 
 
 @check_user_reg
@@ -107,15 +113,16 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ADD_GOOD
 
 
+@check_user_reg
 async def add_good(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.message.from_user.id)
     url = update.message.text
     try:
         response = pt_service.add_user_sub_good(user_id=user_id, url=url)
     except pt_error.Error as e:
-        response = UserAddGoodResponse.error(type(e))
+        response = UserAddGoodResponse.failure(type(e))
     except Exception:
-        response = UserAddGoodResponse.error(pt_error.Error)
+        response = UserAddGoodResponse.failure(pt_error.Error)
     await update.message.reply_text(text=response.to_message())
     return ConversationHandler.END
 
@@ -127,6 +134,7 @@ async def my_good(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_html(text=response.to_message(), disable_web_page_preview=True)
 
 
+@check_user_reg
 async def clear(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = _create_user_sub_goods_buttons(str(update.message.from_user.id))
     await update.message.reply_text(CLEAR_USER_SUB_GOODS_TEXT, reply_markup=reply_markup)
@@ -134,6 +142,8 @@ async def clear(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def clear_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Parses the CallbackQuery and updates the message text."""
+    if not _is_private_update(update):
+        return
     query = update.callback_query
 
     await query.answer()
@@ -149,16 +159,24 @@ async def clear_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 def _create_user_sub_goods_buttons(user_id: str) -> InlineKeyboardMarkup:
     keyboard = []
     for element in pt_service.find_user_sub_goods(user_id).user_sub_goods:
-        keyboard.append([InlineKeyboardButton(f"{element.good_info.name.strip()}", callback_data=f"{element.good_id}")])
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    f"{element.good_info.name.strip()}", callback_data=f"{element.good_id}"
+                )
+            ]
+        )
     return InlineKeyboardMarkup(keyboard)
 
 
+@check_user_reg
 async def clearall(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.message.from_user.id)
     response = pt_service.clear_user_sub_goods(user_id, None)
     await update.message.reply_text(text=response.to_message())
 
 
+@check_user_reg
 async def untrack(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.message.from_user.id)
     good_name = update.message.text
@@ -179,7 +197,9 @@ def send(msg, chat_id):
     if is_blocked_by_user(chat_id):
         return
     try:
-        bot_event_loop.run_until_complete(application.bot.sendMessage(chat_id=chat_id, text=msg))
+        bot_event_loop.run_until_complete(
+            get_application().bot.send_message(chat_id=chat_id, text=msg)
+        )
     except:
         logger.error("Send message and catch the exception.", exc_info=True)
 
@@ -187,7 +207,8 @@ def send(msg, chat_id):
 def is_blocked_by_user(chat_id):
     try:
         bot_event_loop.run_until_complete(
-            application.bot.send_chat_action(chat_id=str(chat_id), action=ChatAction.TYPING))
+            get_application().bot.send_chat_action(chat_id=str(chat_id), action=ChatAction.TYPING)
+        )
     except telegram.error.Forbidden:
         return True
     except:
@@ -195,4 +216,13 @@ def is_blocked_by_user(chat_id):
     return False
 
 
-_register_bot_command_handler()
+def get_application():
+    global application
+    if application is None:
+        if not pt_config.BOT_TOKEN:
+            raise RuntimeError(
+                "BOT_TOKEN must be configured before starting the optional Python bot"
+            )
+        application = Application.builder().token(pt_config.BOT_TOKEN).build()
+        _register_bot_command_handler(application)
+    return application

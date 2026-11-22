@@ -11,7 +11,7 @@ error_message: dict[Type[pt_error.Error], str] = {
     pt_error.CrawlerParseException: "商品頁面解析失敗",
     pt_error.EmptyPageException: "商品頁面解析失敗",
     pt_error.ExceedLimitedSizeException: f"追蹤物品已達{pt_config.USER_SUB_GOOD_LIMITED}件",
-    pt_error.NotValidMomoURLException: "無效momo商品連結"
+    pt_error.NotValidMomoURLException: "無效momo商品連結",
 }
 
 default_error_message = "Something wrong...try again."
@@ -27,7 +27,7 @@ class UserAddGoodResponse(Exception):
         return UserAddGoodResponse(user_sub_good=user_sub_good, error=None)
 
     @staticmethod
-    def error(error: Type[pt_error.Error]):
+    def failure(error: Type[pt_error.Error]):
         return UserAddGoodResponse(user_sub_good=None, error=error)
 
     def to_message(self) -> str:
@@ -38,12 +38,12 @@ class UserAddGoodResponse(Exception):
             stock_state_string = "缺貨中，請等待上架後通知"
         else:
             stock_state_string = "可購買"
-        message = f'''
+        message = f"""
         ====
         成功新增
         商品名稱：{self.user_sub_good.good_info.name}
         價格：{self.user_sub_good.good_info.formatted_price()}
         狀態：{stock_state_string}
         ====
-        '''
+        """
         return inspect.cleandoc(message)

@@ -1,21 +1,21 @@
 from typing import List, Optional
 
-from repository.database import with_session, Session
+from repository.database import Session, with_session
 from repository.entity import User, UserState, UserSubGood, UserSubGoodState
 
 
 @with_session
-def find_one(user_id: str, session: Session) -> Optional[User]:
+def find_one(user_id: str, session: Session = None) -> Optional[User]:
     return session.query(User).filter(User.id == user_id).first()
 
 
 @with_session
-def find_all_by_state(state: UserState, session: Session) -> List[User]:
+def find_all_by_state(state: UserState, session: Session = None) -> List[User]:
     return session.query(User).filter(User.state == state).all()
 
 
 @with_session
-def find_all_user_by_good_id(good_id: str, session: Session) -> List[User]:
+def find_all_user_by_good_id(good_id: str, session: Session = None) -> List[User]:
     return (
         session.query(User)
         .join(UserSubGood)

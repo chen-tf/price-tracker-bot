@@ -13,10 +13,10 @@ class ClearSubGoodResponse:
 
         message = "已清空以下物品\n"
         for good_name in self.removed_good_names:
-            row = f'''
+            row = f"""
             ====
             商品名稱:{good_name}
             ====
-            '''
+            """
             message = message + inspect.cleandoc(row)
         return message
