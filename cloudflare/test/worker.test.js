@@ -174,7 +174,10 @@ test('sync commits price and subscriber-specific alerts atomically and rejects s
   assert.match(JSON.parse(alerts[0].payload).text, /低於加入追蹤時的 1000/);
   assert.doesNotMatch(JSON.parse(alerts[1].payload).text, /低於/);
   assert.match(JSON.parse(alerts[1].payload).text, /已經可購買/);
-  await acceptPrices(priceRequest([fresh()]), env);
+  const version = db.prepare('SELECT version FROM good_info').get().version;
+  const saved = db.prepare('SELECT last_success FROM good_info').get().last_success;
+  await acceptPrices(priceRequest([fresh({ observed_at: saved })]), env);
+  assert.equal(db.prepare('SELECT version FROM good_info').get().version, version);
   await acceptPrices(priceRequest([fresh({ price: 1, observed_at: fresh().observed_at - 5 })], '124'), env);
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM outbox').get().n, 2);
   assert.equal(db.prepare('SELECT price FROM good_info').get().price, 900);
@@ -183,7 +186,7 @@ test('sync commits price and subscriber-specific alerts atomically and rejects s
 
 test('failed sync and invalid values preserve old prices; notification failure rolls back all changes', async t => {
   const { db, env } = setup(t); seed(db);
-  await acceptPrices(priceRequest([{ id: '123', error: 'HTTP 403' }]), env);
+  await acceptPrices(priceRequest([{ id: '123', error: 'HTTP 403', observed_at: fresh().observed_at - 1 }]), env);
   assert.equal(db.prepare('SELECT price FROM good_info').get().price, 1000);
   assert.equal(db.prepare('SELECT last_error FROM good_info').get().last_error, 'HTTP 403');
   assert.equal((await acceptPrices(priceRequest([fresh({ price: 0 })]), env)).status, 400);
@@ -362,4 +365,123 @@ test('native scheduled polling bounds each invocation to ten due products', asyn
   assert.equal(requested.length, 10);
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM good_info WHERE last_success IS NOT NULL').get().n, 10);
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM good_info WHERE next_check=0').get().n, 10);
+});
+
+
+test('observations stay monotonic across success, unavailable and errors', async t => {
+  const { db, env } = setup(t); seed(db);
+  const time = fresh().observed_at;
+  for (const middle of [{ unavailable: true }, { error: 'timeout' }]) {
+    db.exec('UPDATE good_info SET last_checked=NULL,last_success=NULL,price=1000,stock_state=0; DELETE FROM outbox;');
+    await acceptPrices(priceRequest([fresh({ observed_at: time - 30 })]), env);
+    await acceptPrices(priceRequest([{ id: '123', ...middle, observed_at: time - 10 }], '124'), env);
+    const expected = db.prepare('SELECT * FROM good_info').get();
+    const count = db.prepare('SELECT COUNT(*) n FROM outbox').get().n;
+    for (const older of [fresh({ price: 1, observed_at: time - 20 }),
+      { id: '123', unavailable: true, observed_at: time - 20 },
+      { id: '123', error: 'late failure', observed_at: time - 20 }]) {
+      await acceptPrices(priceRequest([older], '125'), env);
+      assert.deepEqual(db.prepare('SELECT * FROM good_info').get(), expected);
+      assert.equal(db.prepare('SELECT COUNT(*) n FROM outbox').get().n, count);
+    }
+  }
+  assert.equal((await acceptPrices(priceRequest([{ id: '123', error: 'no timestamp' }]), env)).status, 400);
+});
+
+test('same-user updates wait for a slow add while another user proceeds', async t => {
+  const { db, env } = setup(t); seed(db);
+  incoming(db, 1, '/add https://www.momoshop.com.tw/product/456');
+  incoming(db, 2, '/clearall'); incoming(db, 3, '/start', 20);
+  let release, started;
+  const waiting = new Promise(r => { started = r; });
+  const first = processOneUpdate(env, () => { started(); return new Promise(r => { release = r; }); });
+  await waiting;
+  assert.equal(await processOneUpdate(env), true);
+  assert.equal(db.prepare('SELECT status FROM telegram_update WHERE id=3').get().status, 'done');
+  assert.equal(await processOneUpdate(env), false);
+  release({ id: '456', name: '商品', price: 100, stock_state: 1 }); await first;
+  await processOneUpdate(env);
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM user_sub_good WHERE user_id='10' AND state=1").get().n, 0);
+});
+
+test('an expired command lease cannot commit after another worker claims it', async t => {
+  const { db, env } = setup(t); seed(db);
+  incoming(db, 1, '/add https://www.momoshop.com.tw/product/456');
+  let release, started;
+  const waiting = new Promise(r => { started = r; });
+  const first = processOneUpdate(env, () => { started(); return new Promise(r => { release = r; }); });
+  await waiting;
+  db.exec('UPDATE telegram_update SET lease_until=0 WHERE id=1');
+  await processOneUpdate(env, async () => ({ id: '456', name: 'new lease', price: 200, stock_state: 1 }));
+  release({ id: '456', name: 'expired lease', price: 100, stock_state: 1 });
+  await assert.rejects(first, /lease superseded/);
+  assert.equal(db.prepare("SELECT price FROM user_sub_good WHERE good_id='456'").get().price, 200);
+});
+
+test('exhausted updates block their user only until their active lease expires', async t => {
+  const { db, env } = setup(t);
+  incoming(db, 1, '/start'); incoming(db, 2, '/clearall');
+  db.prepare('UPDATE telegram_update SET attempts=10,lease_until=? WHERE id=1').run(fresh().observed_at + 30);
+  assert.equal(await processOneUpdate(env), false);
+  db.exec('UPDATE telegram_update SET lease_until=0 WHERE id=1');
+  assert.equal(await processOneUpdate(env), true);
+  assert.equal(db.prepare('SELECT status FROM telegram_update WHERE id=2').get().status, 'done');
+});
+
+test('canceling a subscription permanently expires its queued alerts, including after re-add', async t => {
+  for (const command of ['/clearall', 'clear:123', '123']) {
+    const { db, env } = setup(t); seed(db);
+    await acceptPrices(priceRequest([fresh()]), env);
+    if (command === '/clearall') incoming(db, 1, command);
+    else incoming(db, 1, '', 10, { message: undefined, callback_query: { from: { id: 10 }, data: command, message: { chat: { id: 10, type: 'private' } } } });
+    await processOneUpdate(env);
+    incoming(db, 2, '/add https://www.momoshop.com.tw/product/123');
+    await processOneUpdate(env, async () => ({ id: '123', name: '商品', price: 950, stock_state: 1 }));
+    const sent = [];
+    await drainOutbox(env, async (_url, options) => { sent.push(JSON.parse(options.body)); return Response.json({ ok: true }); }, 10);
+    assert.equal(sent.filter(m => m.chat_id === '10' && /目前價格為|目前已經可購買/.test(m.text)).length, 0);
+    assert.equal(sent.filter(m => m.chat_id === '20' && /目前已經可購買/.test(m.text)).length, 1);
+    assert.ok(sent.some(m => m.chat_id === '10' && /已追蹤/.test(m.text)));
+  }
+});
+
+test('adding a returned product schedules an immediate check without swallowing other users price change', async t => {
+  const { db, env } = setup(t); seed(db);
+  db.exec("UPDATE good_info SET last_error='product_unavailable',next_check=9999999999");
+  incoming(db, 1, '/add https://www.momoshop.com.tw/product/123');
+  await processOneUpdate(env, async () => ({ id: '123', name: '回架', price: 700, stock_state: 1 }));
+  const good = db.prepare('SELECT * FROM good_info').get();
+  assert.equal(good.next_check, 0); assert.equal(good.price, 1000);
+  await acceptPrices(priceRequest([fresh({ price: 700 })]), env);
+  assert.ok(db.prepare("SELECT id FROM outbox WHERE subscription_id='sub-20'").get());
+});
+
+test('public health uses a constant query and detailed health requires authentication', async t => {
+  const { env } = setup(t);
+  const queries = [];
+  const cheap = { DB: { prepare(sql) { queries.push(sql); return { bind() { return this; }, async first() { return { ok: 1 }; } }; } } };
+  assert.equal((await worker.fetch(new Request('https://test/health'), cheap, {})).status, 200);
+  assert.deepEqual(queries, ['SELECT 1 AS ok']);
+  assert.equal((await worker.fetch(new Request('https://test/internal/health'), env, {})).status, 401);
+  const result = await worker.fetch(new Request('https://test/internal/health', { headers: { Authorization: 'Bearer sync-secret' } }), env, {});
+  assert.equal((await result.json()).pending_messages, 0);
+});
+
+test('scheduled prices keep their reserved minutes even with a continuous reply backlog', async t => {
+  const { db, env } = setup(t); seed(db);
+  incoming(db, 1, '/start'); await processOneUpdate(env);
+  const original = globalThis.fetch;
+  t.after(() => { globalThis.fetch = original; });
+  let shops = 0, messages = 0;
+  globalThis.fetch = async url => {
+    if (String(url).includes('api.telegram.org')) { messages++; return Response.json({ ok: true }); }
+    shops++;
+    return Response.json(String(url).endsWith('getInstantGoodsStatus')
+      ? { success: true, rtnGoods: { '123': { goodsName: '商品', goodsPriceModel: { basePrice: { price: '900' } } } } }
+      : { success: true, rtnGoodsData: { goodsStock: '1' } });
+  };
+  await worker.scheduled({ scheduledTime: Date.UTC(2026, 10, 22, 0, 1) }, env, {});
+  assert.equal(shops, 2); assert.equal(messages, 0);
+  await worker.scheduled({ scheduledTime: Date.UTC(2026, 10, 22, 0, 4) }, env, {});
+  assert.ok(messages > 0);
 });

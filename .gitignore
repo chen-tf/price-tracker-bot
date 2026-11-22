@@ -143,3 +143,10 @@ node_modules/
 .dev.vars
 cloudflare/backups/
 cloudflare/import.sql
+
+# Environment-specific secrets
+.env.*
+!.env.example
+.dev.vars.*
+!.dev.vars.example
+.aidd/

@@ -35,13 +35,13 @@ export async function acceptPrices(request, env) {
       return new Response('Invalid product ID', { status: 400 });
     }
     seen.add(good.id);
+    if (!Number.isSafeInteger(good.observed_at) || good.observed_at > timestamp + 60 || good.observed_at < timestamp - 86400) return new Response('Invalid product timestamp', { status: 400 });
     if (good.unavailable === true) {
-      if (!Number.isSafeInteger(good.observed_at) || good.observed_at > timestamp + 60 || good.observed_at < timestamp - 86400) return new Response('Invalid product timestamp', { status: 400 });
       unavailable.push({ id: good.id, observed_at: good.observed_at });
       continue;
     }
     if (good.error) {
-      errors.push({ id: good.id, error: String(good.error).slice(0, 300) });
+      errors.push({ id: good.id, error: String(good.error).slice(0, 300), observed_at: good.observed_at });
       continue;
     }
     if ((good.source_id !== undefined && !/^\d+$/.test(good.source_id)) || typeof good.name !== 'string' || !good.name.trim() || good.name.length > 500 ||
@@ -56,8 +56,8 @@ export async function acceptPrices(request, env) {
   // One JSON table per batch keeps SQL preparation and round trips independent of item count.
   if (valid.length) {
     const data = JSON.stringify(valid);
-    writes.push(statement(env, `INSERT OR IGNORE INTO outbox(id, user_id, payload, created_at)
-      SELECT ? || g.id || ':' || s.id, s.user_id,
+    writes.push(statement(env, `INSERT OR IGNORE INTO outbox(id, user_id, subscription_id, payload, created_at)
+      SELECT ? || g.id || ':' || s.id, s.user_id, s.id,
         json_object('text', j.value ->> '$.name' || char(10) ||
           CASE WHEN g.price != j.value ->> '$.price' AND s.price > j.value ->> '$.price'
             THEN '目前價格為 ' || CAST(j.value ->> '$.price' AS INTEGER) || '，低於加入追蹤時的 ' || s.price || char(10) ELSE '' END ||
@@ -66,7 +66,7 @@ export async function acceptPrices(request, env) {
           'link_preview_options', json_object('is_disabled', json('true'))), ?
       FROM json_each(?) j JOIN good_info g ON g.id = j.value ->> '$.id'
         JOIN user_sub_good s ON s.good_id = g.id JOIN "user" u ON u.id = s.user_id
-      WHERE s.state = 1 AND u.state = 1 AND (g.last_success IS NULL OR g.last_success < j.value ->> '$.observed_at')
+      WHERE s.state = 1 AND u.state = 1 AND (COALESCE(g.last_checked, g.last_success, 0) < j.value ->> '$.observed_at')
         AND ((g.price != j.value ->> '$.price' AND s.price > j.value ->> '$.price')
           OR (g.stock_state = 0 AND j.value ->> '$.stock_state' = 1))`, `sync:${body.run_id}:`, timestamp, data));
     writes.push(statement(env, `UPDATE good_info AS g SET name = j.value ->> '$.name', price = j.value ->> '$.price',
@@ -74,14 +74,14 @@ export async function acceptPrices(request, env) {
       last_success = j.value ->> '$.observed_at', last_checked = j.value ->> '$.observed_at', next_check = ?,
       last_error = NULL, update_time = CURRENT_TIMESTAMP
       FROM json_each(?) j WHERE g.id = j.value ->> '$.id'
-        AND (g.last_success IS NULL OR g.last_success < j.value ->> '$.observed_at')`, timestamp + 14400, data));
+        AND (COALESCE(g.last_checked, g.last_success, 0) < j.value ->> '$.observed_at')`, timestamp + 14400, data));
   }
   if (unavailable.length) writes.push(statement(env, `UPDATE good_info AS g SET last_error = 'product_unavailable',
     last_checked = j.value ->> '$.observed_at', next_check = ? FROM json_each(?) j
-    WHERE g.id = j.value ->> '$.id' AND (g.last_checked IS NULL OR g.last_checked < j.value ->> '$.observed_at')`,
+    WHERE g.id = j.value ->> '$.id' AND (COALESCE(g.last_checked, g.last_success, 0) < j.value ->> '$.observed_at')`,
   timestamp + 86400, JSON.stringify(unavailable)));
-  if (errors.length) writes.push(statement(env, `UPDATE good_info AS g SET last_error = j.value ->> '$.error', next_check = ?
-    FROM json_each(?) j WHERE g.id = j.value ->> '$.id'`, timestamp + 14400, JSON.stringify(errors)));
+  if (errors.length) writes.push(statement(env, `UPDATE good_info AS g SET last_error = j.value ->> '$.error', last_checked = j.value ->> '$.observed_at', next_check = ?
+    FROM json_each(?) j WHERE g.id = j.value ->> '$.id' AND COALESCE(g.last_checked, g.last_success, 0) < j.value ->> '$.observed_at'`, timestamp + 14400, JSON.stringify(errors)));
   const results = writes.length ? await env.DB.batch(writes) : [];
   const usage = { sql_statements: writes.length,
     rows_read: results.reduce((sum, r) => sum + (r.meta?.rows_read || 0), 0),
@@ -107,7 +107,7 @@ export async function pollPrices(env, fetcher = fetch) {
   try {
     const prices = await readPrices(ids, env, fetcher);
     results = due.results.map(g => ({ ...prices.find(p => p.id === g.id.replace(/\s+\/add$/, '')), id: g.id }));
-  } catch (error) { results = due.results.map(g => ({ id: g.id, error: error.message })); }
+  } catch (error) { results = due.results.map(g => ({ id: g.id, error: error.message, observed_at: timestamp })); }
   const response = await acceptPrices(new Request('https://internal/prices', { method: 'POST',
     body: JSON.stringify({ run_id: String(timestamp), goods: results }) }), env);
   if (!response.ok) throw new Error('Invalid price source response');
