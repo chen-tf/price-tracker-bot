@@ -1,5 +1,5 @@
 from repository import good_repository
-from repository.entity import GoodInfoStockState, GoodInfoState, GoodInfo
+from repository.entity import GoodInfo, GoodInfoState, GoodInfoStockState
 from tests.base_pg_testcontainer import BasePGTestContainer
 
 
@@ -15,4 +15,7 @@ class TestGoodRepository(BasePGTestContainer):
 
     def _given_enable_good(self, good_id: str):
         self.session.add(
-            GoodInfo(id=good_id, state=GoodInfoState.ENABLE, stock_state=GoodInfoStockState.IN_STOCK))
+            GoodInfo(
+                id=good_id, state=GoodInfoState.ENABLE, stock_state=GoodInfoStockState.IN_STOCK
+            )
+        )

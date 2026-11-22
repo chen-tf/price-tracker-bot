@@ -6,6 +6,7 @@ class IntEnum(sa.types.TypeDecorator):
     Enables passing in a Python enum and storing the enum's *value* in the db.
     The default would have stored the enum's *name* (ie the string).
     """
+
     impl = sa.types.Integer
     cache_ok = True
 

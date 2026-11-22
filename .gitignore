@@ -150,3 +150,9 @@ cloudflare/import.sql
 .dev.vars.*
 !.dev.vars.example
 .aidd/
+
+# Local pytest-html output
+/testReport*.html
+/assets/style.css
+
+postgres-data-18/

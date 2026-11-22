@@ -11,10 +11,9 @@ TELEGRAM_BOT_MODE = os.getenv("TELEGRAM_BOT_MODE", "polling")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 MOMO_URL = "https://m.momoshop.com.tw/"
 MOMO_GOOD_URI = "goods.momo"
-USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36"
-TEMP_MOMO_GOOD_URL = "https://f85e-114-34-80-107.ngrok-free.app/good"
+USER_AGENT = "price-tracker-bot/1.0"
 
-WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET")
 
 USER_SUB_GOOD_LIMITED = 20
 
@@ -29,9 +28,6 @@ PERIOD_HOUR = int(os.getenv("PERIOD_HOUR", 2))
 
 MOMO_REQUEST_TIMEOUT = 6
 
-LINE_NOTIFY_REDIRECT_URL = os.getenv("LINE_NOTIFY_REDIRECT_URL")
-LINE_NOTIFY_CLIENT_ID = os.getenv("LINE_NOTIFY_CLIENT_ID")
-LINE_NOTIFY_CLIENT_SECRET = os.getenv("LINE_NOTIFY_CLIENT_SECRET")
 
 PORT = int(os.getenv("PORT", 8080))
 

@@ -5,17 +5,22 @@ import time
 import pt_config
 import pt_error
 import pt_momo
-from lotify_client import get_lotify_client
 from pt_momo import generate_momo_url_by_good_id
-from repository import good_repository, user_sub_good_repository, user_repository, common_repository
-from repository.entity import GoodInfoStockState, GoodInfo, GoodInfoState, UserSubGoodState, UserState, User, \
-    UserSubGood
+from repository import common_repository, good_repository, user_repository, user_sub_good_repository
+from repository.entity import (
+    GoodInfo,
+    GoodInfoState,
+    GoodInfoStockState,
+    User,
+    UserState,
+    UserSubGood,
+    UserSubGoodState,
+)
 from response.ClearSubGoodResponse import ClearSubGoodResponse
 from response.MySubGoodsResponse import UserSubGoodsResponse
 from response.UserAddGoodResponse import UserAddGoodResponse
 
 logger = logging.getLogger("Service")
-lotify_client = get_lotify_client()
 
 
 def sync_price() -> None:
@@ -37,6 +42,7 @@ def sync_price() -> None:
 def _price_sync_handler(good_info: GoodInfo) -> None:
     good_id = None
     import pt_bot
+
     new_good_info = None
     try:
         good_id = good_info.id
@@ -65,19 +71,13 @@ def _price_sync_handler(good_info: GoodInfo) -> None:
                 good_page_url,
             )
             pt_bot.send(format_msg, chat_id)
-            line_notify_token = cheaper_record.user.line_notify_token
-            if line_notify_token:
-                try:
-                    lotify_client.send_message(line_notify_token, format_msg)
-                except Exception as ex:
-                    logger.error(ex, exc_info=True)
             success_notified_user_ids.append(cheaper_record.id)
         user_sub_good_repository.update_notified_by_id_in(success_notified_user_ids, True)
 
         # Notify if good's stock change
         if (
-                new_good_info.stock_state == GoodInfoStockState.IN_STOCK
-                and good_info.stock_state == GoodInfoStockState.OUT_OF_STOCK
+            new_good_info.stock_state == GoodInfoStockState.IN_STOCK
+            and good_info.stock_state == GoodInfoStockState.OUT_OF_STOCK
         ):
             logger.info(f"{new_good_info.name} is in stock!")
             follow_good_users = user_repository.find_all_user_by_good_id(good_id)
@@ -97,7 +97,9 @@ def _price_sync_handler(good_info: GoodInfo) -> None:
 
 
 def _handle_redundant_good_info(good_info: GoodInfo) -> bool:
-    valid_user_sub_goods = user_sub_good_repository.count_by_good_id_and_state(good_info.id, UserSubGoodState.ENABLE)
+    valid_user_sub_goods = user_sub_good_repository.count_by_good_id_and_state(
+        good_info.id, UserSubGoodState.ENABLE
+    )
 
     if valid_user_sub_goods >= 1:
         return True
@@ -109,8 +111,11 @@ def _handle_redundant_good_info(good_info: GoodInfo) -> bool:
 
 def disable_blocked_user_data() -> None:
     import pt_bot
-    blocked_users = filter(lambda u: pt_bot.is_blocked_by_user(u.chat_id),
-                           user_repository.find_all_by_state(UserState.ENABLE))
+
+    blocked_users = filter(
+        lambda u: pt_bot.is_blocked_by_user(u.chat_id),
+        user_repository.find_all_by_state(UserState.ENABLE),
+    )
     for user in blocked_users:
         _disable_user_and_sub_goods(user)
 
@@ -118,20 +123,18 @@ def disable_blocked_user_data() -> None:
 def _disable_user_and_sub_goods(user):
     user.state = UserState.DISABLE
     common_repository.merge(user)
-    user_sub_goods = user_sub_good_repository.find_all_by_user_id_and_state(user.id, UserSubGoodState.ENABLE)
+    user_sub_goods = user_sub_good_repository.find_all_by_user_id_and_state(
+        user.id, UserSubGoodState.ENABLE
+    )
     for user_sub_good in user_sub_goods:
         user_sub_good.state = UserSubGoodState.DISABLE
         common_repository.merge(user_sub_good)
 
 
-def update_user_line_token(user_id: str, line_notify_token: str) -> None:
-    user = user_repository.find_one(user_id)
-    user.line_notify_token = line_notify_token
-    common_repository.merge(user)
-
-
 def find_user_sub_goods(user_id: str) -> UserSubGoodsResponse:
-    user_sub_goods = user_sub_good_repository.find_all_by_user_id_and_state(user_id, UserSubGoodState.ENABLE)
+    user_sub_goods = user_sub_good_repository.find_all_by_user_id_and_state(
+        user_id, UserSubGoodState.ENABLE
+    )
     return UserSubGoodsResponse(user_sub_goods)
 
 
@@ -155,11 +158,16 @@ def clear_user_sub_goods_by_id(user_id: str, good_id: str) -> ClearSubGoodRespon
 
 
 def _find_user_sub_goods_contains_name(user_id, good_name):
-    user_sub_goods = user_sub_good_repository.find_all_by_user_id_and_state(user_id, UserSubGoodState.ENABLE)
+    user_sub_goods = user_sub_good_repository.find_all_by_user_id_and_state(
+        user_id, UserSubGoodState.ENABLE
+    )
     not_clear_all = good_name is not None
     if not_clear_all:
-        user_sub_goods = [user_sub_good for user_sub_good in user_sub_goods if
-                          good_name in user_sub_good.good_info.name]
+        user_sub_goods = [
+            user_sub_good
+            for user_sub_good in user_sub_goods
+            if good_name in user_sub_good.good_info.name
+        ]
     return user_sub_goods
 
 
@@ -180,16 +188,18 @@ def add_user_sub_good(user_id: str, url: str) -> UserAddGoodResponse:
 
 
 def _ensure_user_maximum_sub_goods(user_id: str) -> None:
-    if user_sub_good_repository.count_by_user_id_and_state(user_id,
-                                                           UserSubGoodState.ENABLE) \
-            >= pt_config.USER_SUB_GOOD_LIMITED:
+    if (
+        user_sub_good_repository.count_by_user_id_and_state(user_id, UserSubGoodState.ENABLE)
+        >= pt_config.USER_SUB_GOOD_LIMITED
+    ):
         raise pt_error.ExceedLimitedSizeException
 
 
 def _upsert_user_sub_good(good_info: GoodInfo, user_id: str) -> UserSubGood:
     user_sub_good = _create_user_sub_good(good_info, user_id)
-    exist_record = user_sub_good_repository.find_one_by_user_id_and_good_id(user_id=user_sub_good.user_id,
-                                                                            good_id=user_sub_good.good_id)
+    exist_record = user_sub_good_repository.find_one_by_user_id_and_good_id(
+        user_id=user_sub_good.user_id, good_id=user_sub_good.good_id
+    )
     if exist_record:
         _update_existing_sub_good(exist_record, user_sub_good)
         return common_repository.merge(exist_record)
@@ -209,5 +219,5 @@ def _create_user_sub_good(good_info: GoodInfo, user_id: str) -> UserSubGood:
         good_id=good_info.id,
         price=good_info.price,
         is_notified=False,
-        state=UserSubGoodState.ENABLE
+        state=UserSubGoodState.ENABLE,
     )
