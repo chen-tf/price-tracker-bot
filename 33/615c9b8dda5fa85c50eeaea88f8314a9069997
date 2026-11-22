@@ -1,0 +1,43 @@
+.github/workflows/cloudflare-refresh.yml
+  s_80fe1ae900e884::t_68ceb23d9b27e4 10,35,39-45
+cloudflare/migrations/0005_product_source.sql
+  s_80fe1ae900e884::t_68ceb23d9b27e4 1
+cloudflare/test/worker.test.js
+  s_80fe1ae900e884::t_4b4df4e09faec3 8,288-344
+cloudflare/src/sync.js
+  s_80fe1ae900e884::t_22e4bdab47af6d 8-11,13,30,32,39-40,44,49,52,54-58,60-65,67-72,74-77,79-84,93,104
+  s_80fe1ae900e884::t_4b4df4e09faec3 85-89
+  s_80fe1ae900e884::t_68ceb23d9b27e4 12,17,47,53,73,102,105
+cloudflare/src/worker.js
+  s_80fe1ae900e884::t_1a111872742cba 129-131
+  s_80fe1ae900e884::t_68ceb23d9b27e4 34,43,64,177-185,223-225
+cloudflare/src/momo.js
+  s_80fe1ae900e884::t_1a111872742cba 22-23,27
+cloudflare/scripts/refresh_prices.mjs
+  s_80fe1ae900e884::t_4b4df4e09faec3 50-51,56,58,70-71
+  s_80fe1ae900e884::t_d01316b2efbbfe 43-44,52,55,57,59
+  s_80fe1ae900e884::t_1a111872742cba 53
+cloudflare/src/momo-api.js
+  s_80fe1ae900e884::t_68ceb23d9b27e4 34,40-46,49,101,110-113,116
+  s_80fe1ae900e884::t_d01316b2efbbfe 35-39,47-48,50-51,70,88-89,93-94,102,105-108,115
+  s_80fe1ae900e884::t_1a111872742cba 52-69,80,103-104,109
+  s_80fe1ae900e884::t_4b4df4e09faec3 81-87,95-100,114
+cloudflare/README.md
+  s_80fe1ae900e884::t_46f76507c1f89d 21,23-25,49-50,89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "33615c9b8dda5fa85c50eeaea88f8314a9069997",
+  "prompts": {},
+  "sessions": {
+    "s_80fe1ae900e884": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a2019e-d6f2-7dd0-9e59-7bb19a4f1490",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Chen Tim[ ChenTim ] <tim.tf.chen@linecorp.com>"
+    }
+  }
+}
