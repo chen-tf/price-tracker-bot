@@ -18,9 +18,11 @@ Telegram → Cloudflare Workers → D1。Cloudflare Cron 每分鐘處理到期�
 
 每位使用者最多追蹤 20 件商品；私人清單與刪除限定本人。LINE Notify 已於 2025-03-31 終止，`/line` 說明改用 Telegram。
 
-正常商品每四小時重新到期，每分鐘最多八件，扣除每小時維護分鐘，約能負擔 1888 件持續啟用商品。積壓、錯誤或大量指令會延長實際間隔；負載超過能力時不自動升級方案。
+正常商品每四小時重新到期，每分鐘最多批次處理 20 件。排程優先處理指令與待送通知，查價與訊息投遞分開執行以控制免費 CPU 預算；積壓、錯誤或大量指令會延長實際間隔，負載超過能力時不自動升級方案。
 
-價格改變且低於該使用者加入時價格便通知；缺貨轉有貨也通知。momo 明確回覆「查無商品」時保留原價格、清單與基準價，標示無法取得並改每日重試；其他抓價錯誤也不會以 0 覆蓋舊價。
+同一商品換過 momo 編號時，讀取公開商品頁的結構化資料，驗證 offer URL 後取得新編號，再以新編號呼叫即時價格與庫存 API；對應存入 `source_id`，保留原追蹤主鍵與個人基準價。排程每批最多解析一次新舊編號，避免少數異常資料耗盡免費 subrequests。
+
+價格改變且低於該使用者加入時價格便通知；缺貨轉有貨也通知。momo 明確回覆「查無商品」時保留原價格、清單與基準價，標示無法取得並改每日批次重試；確認下架的商品若仍回傳空名稱與 0 元，不逐件重查庫存，重新出現有效價格時才恢復正常查價。其他抓價錯誤也不會以 0 覆蓋舊價。
 
 ## 舊資料
 
@@ -44,7 +46,8 @@ Telegram → Cloudflare Workers → D1。Cloudflare Cron 每分鐘處理到期�
 - D1 Free：每日 5,000,000 rows read、100,000 rows written；每 DB 500MB。本次匯入約寫入 49,311 rows。
 - 不綁定 Browser Run，不消耗其每日 10 分鐘額度。
 - GitHub Actions 僅負責公開 repo 標準免費 runner 的 CI/CD 與手動診斷；正式查價不依賴 GitHub 排程，因此沒有 60 天不活躍停用問題。
-- Cron 避免同次處理積壓指令與批次查價，最多發三則訊息，以控制單次子請求數。單個 webhook 的即時回覆優先於降價通知。
+- Cron 查價每批 20 件，以單次價格 API 搭配最多四個並行庫存請求，移除固定等待；相同來源商品共用庫存請求。已知下架商品只需批次價格請求。通知分鐘最多發三則，該分鐘不查價。
+- 每批有效價格與通知使用兩句 SQL，在同一 D1 transaction 提交；下架與錯誤各一句。這減少 SQL 準備、讀取與往返，不代表計費 rows written 同比下降。手動補查會記錄實際 rows read／written。
 
 Webhook 先持久化再 ACK，重送去重。價格與 outbox 通知同 D1 batch 原子提交，過期或重送資料不重複建立提醒。Telegram 429／暫時錯誤重試，403 停用已封鎖 bot 的使用者與追蹤。Telegram sendMessage 沒有冪等鍵，接收成功但本地成功紀錄遺失時，仍可能重複發送。
 
@@ -83,7 +86,7 @@ npm run deploy
 
 `.github/workflows/cloudflare.yml` 在相關 PR／main push 測試、套用本機 migrations、dry-run；main 手動 dispatch 才部署。使用 `cloudflare-production` environment 的 `CLOUDFLARE_ACCOUNT_ID`、`CLOUDFLARE_API_TOKEN`。首次建立 D1、匯入資料與 webhook 切換不隨 push 自動執行。
 
-`.github/workflows/cloudflare-refresh.yml` 只提供手動維運：預設 connectivity 讀公開測試商品；headers 執行 header 對照；refresh 透過 repository secrets `WORKER_URL`、`SYNC_SECRET` 全量補跑。不啟用舊排程。
+`.github/workflows/cloudflare-refresh.yml` 只提供手動維運：預設 connectivity 讀公開測試商品；headers 執行 header 對照；refresh 只補到期商品，retry-errors 只重試實際錯誤，full-refresh 才全量補跑。透過 repository secrets `WORKER_URL`、`SYNC_SECRET` 同步，每 100 件共用價格請求、每 20 件提交 D1；正常補查不重跑尚未到期商品。不啟用舊排程。
 
 Fly 舊應用 `price-tracker` 已刪除，確認 0 台機器且無 Volume。原 Fly 部署、查價及 Python checks 改為手動，避免 push 啟動舊環境或重設 webhook。舊 Supabase 與本機備份不刪除。回復舊環境前需處理 D1 上線後新增資料，不可直接覆蓋。
 
